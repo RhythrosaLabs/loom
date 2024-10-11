@@ -13,6 +13,8 @@ import os
 import sys
 import numpy as np
 import traceback
+from datetime import datetime
+import threading
 
 # Redirect stderr to stdout
 sys.stderr = sys.stdout
@@ -34,7 +36,7 @@ def resize_image(image):
         return image.resize((768, 768))
 
 def generate_image_from_text(api_key, prompt):
-    url = "https://api.stability.ai/v1beta/generation/stable-diffusion-v1-6/text-to-image"
+    url = "https://api.stability.ai/v1/generation/stable-diffusion-v1-5/text-to-image"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -58,7 +60,7 @@ def generate_image_from_text(api_key, prompt):
         return None
 
 def start_video_generation(api_key, image, cfg_scale=1.8, motion_bucket_id=127, seed=0):
-    url = "https://api.stability.ai/v2beta/image-to-video"
+    url = "https://api.stability.ai/v1/generation/image-to-video"
     headers = {
         "Authorization": f"Bearer {api_key}"
     }
@@ -82,7 +84,7 @@ def start_video_generation(api_key, image, cfg_scale=1.8, motion_bucket_id=127, 
         return None
 
 def poll_for_video(api_key, generation_id):
-    url = f"https://api.stability.ai/v2beta/image-to-video/result/{generation_id}"
+    url = f"https://api.stability.ai/v1/generation/image-to-video/result/{generation_id}"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Accept": "video/*"
@@ -103,6 +105,52 @@ def poll_for_video(api_key, generation_id):
             return None
     st.error("Video generation timed out. Please try again.")
     return None
+
+# Function to analyze images using Replicate's image captioning model (BLIP)
+def analyze_image(image):
+    try:
+        model = replicate.models.get("salesforce/blip")
+        version = model.versions.get("c2e454e0c809c550b9d7386079468c9fc9ec4b2d2bcd68e048333209d289bc69")
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='JPEG')
+        img_byte_arr = img_byte_arr.getvalue()
+
+        output = version.predict(image=img_byte_arr)
+        caption = output
+        return caption
+    except Exception as e:
+        st.error(f"Error analyzing image: {str(e)}")
+        return "An image was generated."
+
+# Function to extract and analyze a frame from video
+def analyze_video_frame(video_path):
+    try:
+        clip = VideoFileClip(video_path)
+        frame = clip.get_frame(0)  # Get the first frame
+        image = Image.fromarray(frame)
+        caption = analyze_image(image)
+        clip.close()
+        return caption
+    except Exception as e:
+        st.error(f"Error analyzing video: {str(e)}")
+        return "A video was generated."
+
+# Automation task runner
+def run_automation_tasks():
+    while True:
+        now = datetime.now()
+        for task in st.session_state.automation_tasks:
+            task_time = datetime.strptime(task['time'], "%Y-%m-%d %H:%M")
+            if now >= task_time and not task.get('completed', False):
+                st.write(f"Running automation task: {task['description']}")
+                # Implement task execution based on task['action']
+                task['completed'] = True
+        time.sleep(60)
+
+# Start automation thread
+if 'automation_thread' not in st.session_state:
+    st.session_state.automation_thread = threading.Thread(target=run_automation_tasks, daemon=True)
+    st.session_state.automation_thread.start()
 
 def main():
     st.set_page_config(page_title="AI Video Suite", layout="wide")
@@ -156,6 +204,10 @@ def main():
                             messages.append(chat)
                         # Add user input
                         messages.append({"role": "user", "content": user_input})
+
+                        # Add context from generated content
+                        for gen in st.session_state.generations[-5:]:  # Include last 5 generations
+                            messages.append({"role": "system", "content": f"Generated content: {gen['analysis']}"})
 
                         with st.spinner("Assistant is typing..."):
                             try:
@@ -260,6 +312,9 @@ def main():
                         with open(video_path, "wb") as f:
                             f.write(video_content)
 
+                        # Analyze video frame
+                        analysis = analyze_video_frame(video_path)
+
                         # Save to generations
                         st.session_state.generations.append({
                             "id": f"stability_t2v_{len(st.session_state.generations)+1}",
@@ -267,7 +322,8 @@ def main():
                             "path": video_path,
                             "source": "Stability AI",
                             "prompt": prompt,
-                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "analysis": analysis
                         })
 
                         st.video(video_path)
@@ -316,6 +372,9 @@ def main():
                         with open(video_path, "wb") as f:
                             f.write(video_content)
 
+                        # Analyze video frame
+                        analysis = analyze_video_frame(video_path)
+
                         # Save to generations
                         st.session_state.generations.append({
                             "id": f"stability_i2v_{len(st.session_state.generations)+1}",
@@ -323,7 +382,8 @@ def main():
                             "path": video_path,
                             "source": "Stability AI",
                             "prompt": "Image-to-Video",
-                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "analysis": analysis
                         })
 
                         st.video(video_path)
@@ -366,13 +426,17 @@ def main():
                             image_path = f"dalle_image_{len(st.session_state.generations)+1}_{i+1}.png"
                             image.save(image_path)
 
+                            # Analyze image
+                            analysis = analyze_image(image)
+
                             st.session_state.generations.append({
                                 "id": f"dalle_{len(st.session_state.generations)+1}_{i+1}",
                                 "type": "image",
                                 "path": image_path,
                                 "source": "DALL·E 3",
                                 "prompt": prompt,
-                                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                                "analysis": analysis
                             })
 
                             st.image(image)
@@ -414,13 +478,17 @@ def main():
                         image_path = f"replicate_image_{len(st.session_state.generations)+1}.{output_format}"
                         image.save(image_path)
 
+                        # Analyze image
+                        analysis = analyze_image(image)
+
                         st.session_state.generations.append({
                             "id": f"replicate_{len(st.session_state.generations)+1}",
                             "type": "image",
                             "path": image_path,
                             "source": "Replicate AI",
                             "prompt": prompt,
-                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "analysis": analysis
                         })
 
                         st.image(image)
@@ -523,13 +591,17 @@ def main():
                         with open(video_path, "wb") as f:
                             f.write(response.content)
 
+                        # Analyze video frame
+                        analysis = analyze_video_frame(video_path)
+
                         st.session_state.generations.append({
                             "id": generation.id,
                             "type": "video",
                             "path": video_path,
                             "source": "Luma AI",
                             "prompt": prompt,
-                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "analysis": analysis
                         })
 
                         st.video(video_path)
@@ -562,7 +634,31 @@ def main():
     # Automate Tab
     with main_tabs[2]:
         st.header("🤖 AI-Powered Automation")
-        # [Implement automation functionality as per previous code]
+        st.info("Set up automated tasks for content generation.")
+        task_description = st.text_input("Task Description")
+        task_time = st.text_input("Scheduled Time (YYYY-MM-DD HH:MM)")
+        task_action = st.selectbox("Action", ["Generate Text-to-Image", "Generate Text-to-Video"])
+        task_prompt = st.text_area("Prompt")
+
+        if st.button("Add Automation Task"):
+            if task_description and task_time and task_action and task_prompt:
+                st.session_state.automation_tasks.append({
+                    "description": task_description,
+                    "time": task_time,
+                    "action": task_action,
+                    "prompt": task_prompt,
+                    "completed": False
+                })
+                st.success("Automation task added.")
+            else:
+                st.error("Please fill in all the fields.")
+
+        st.subheader("Scheduled Tasks")
+        if st.session_state.automation_tasks:
+            for task in st.session_state.automation_tasks:
+                st.write(f"Task: {task['description']}, Time: {task['time']}, Action: {task['action']}, Completed: {task['completed']}")
+        else:
+            st.write("No scheduled tasks.")
 
     # History Tab
     with main_tabs[3]:
@@ -571,6 +667,7 @@ def main():
             for gen in st.session_state.generations[::-1]:
                 st.subheader(f"ID: {gen['id']} | Type: {gen['type']} | Source: {gen['source']} | Time: {gen['timestamp']}")
                 st.write(f"Prompt: {gen['prompt']}")
+                st.write(f"Analysis: {gen['analysis']}")
                 if gen['type'] == "video":
                     st.video(gen['path'])
                     with open(gen['path'], "rb") as f:
