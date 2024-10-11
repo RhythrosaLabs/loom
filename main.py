@@ -8,11 +8,10 @@ from PIL import Image
 import io
 import os
 import sys
-import numpy as np
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime
 
-# Redirect stderr to stdout
+# Redirect stderr to stdout for better error visibility
 sys.stderr = sys.stdout
 
 # Initialize session state
@@ -20,10 +19,6 @@ if 'generations' not in st.session_state:
     st.session_state.generations = []  # List to store generation metadata
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []  # Chat history with AI Assistant
-if 'automation_tasks' not in st.session_state:
-    st.session_state.automation_tasks = []  # List to store automation tasks
-if 'assistant' not in st.session_state:
-    st.session_state.assistant = None  # Assistant instance
 
 # Function to analyze images using Replicate's image captioning model (BLIP)
 def analyze_image(image):
@@ -41,6 +36,23 @@ def analyze_image(image):
         st.error(f"Error analyzing image: {str(e)}")
         return "An image was generated."
 
+# Function to analyze video frames (first frame) using Replicate's BLIP model
+def analyze_video_frame(video_path):
+    try:
+        import cv2
+        cap = cv2.VideoCapture(video_path)
+        ret, frame = cap.read()
+        cap.release()
+        if ret:
+            image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            caption = analyze_image(image)
+            return caption
+        else:
+            return "A video was generated."
+    except Exception as e:
+        st.error(f"Error analyzing video frame: {str(e)}")
+        return "A video was generated."
+
 def main():
     st.set_page_config(page_title="AI Content Suite", layout="wide")
     st.title("🚀 All-in-One AI Content Solution")
@@ -55,6 +67,7 @@ def main():
             # API Keys
             st.subheader("API Keys")
             luma_api_key = st.text_input("Luma AI API Key", type="password")
+            stability_api_key = st.text_input("Stability AI API Key", type="password")
             replicate_api_key = st.text_input("Replicate API Key", type="password")
             openai_api_key = st.text_input("OpenAI API Key", type="password")
 
@@ -66,7 +79,7 @@ def main():
             if openai_api_key:
                 os.environ["OPENAI_API_KEY"] = openai_api_key
 
-            # Initialize clients
+            # Initialize Luma AI client
             luma_client = LumaAI(auth_token=luma_api_key) if luma_api_key else None
 
         # Chat Tab
@@ -95,7 +108,7 @@ def main():
 
                         # Add context from generated content
                         for gen in st.session_state.generations[-5:]:  # Include last 5 generations
-                            messages.append({"role": "system", "content": f"Generated content: {gen['analysis']}"})
+                            messages.append({"role": "system", "content": f"Generated content analysis: {gen['analysis']}"})
 
                         with st.spinner("Assistant is typing..."):
                             try:
@@ -132,27 +145,29 @@ def main():
             st.info("""
             **All-in-One AI Content Solution**
 
-            This application allows you to generate and analyze AI-powered images using various models like Luma AI, Replicate AI, and OpenAI's DALL·E 3. You can also interact with an AI assistant for guidance and automate tasks.
+            This application allows you to generate and analyze AI-powered images and videos using various models like Luma AI, Stability AI, Replicate AI, and OpenAI's DALL·E 3. You can also interact with an AI assistant for guidance.
 
             **Features:**
             - Generate images from text prompts (DALL·E 3, Replicate AI)
+            - Generate videos from text prompts (Luma AI, Stability AI)
             - Analyze generated content automatically
             - Chat with an AI assistant
-            - Automate content generation workflows
             """)
 
-    # Main content with tabs: Generate, Automate, History
-    main_tabs = st.tabs(["Generate", "Automate", "History"])
+    # Main content with tabs: Generate, History
+    main_tabs = st.tabs(["Generate", "History"])
 
     # Generate Tab
     with main_tabs[0]:
-        # Content for the Generate tab
         st.header("🎨 Content Generation")
 
         # Mode selection with icons
         mode = st.selectbox("Select Mode", [
             "🖼️ Text-to-Image (DALL·E 3)",
-            "🖌️ Image Generation (Replicate AI)"
+            "🖌️ Image Generation (Replicate AI)",
+            "🎥 Text-to-Video (Luma AI)",
+            "🎥 Text-to-Video (Stability AI)",
+            "🎥 Image-to-Video (Stability AI)"
         ])
 
         if mode == "🖼️ Text-to-Image (DALL·E 3)":
@@ -197,11 +212,11 @@ def main():
                                 "path": image_path,
                                 "source": "DALL·E 3",
                                 "prompt": prompt,
-                                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                 "analysis": analysis
                             })
 
-                            st.image(image)
+                            st.image(image, caption=f"DALL·E 3 Image: {prompt}")
                         st.success("Image(s) generated and saved to history.")
 
                     except Exception as e:
@@ -249,69 +264,128 @@ def main():
                             "path": image_path,
                             "source": "Replicate AI",
                             "prompt": prompt,
-                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "analysis": analysis
                         })
 
-                        st.image(image)
+                        st.image(image, caption=f"Replicate AI Image: {prompt}")
                         st.success("Image generated and saved to history.")
 
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
                         st.error(traceback.format_exc())
 
-    # Automate Tab
-    with main_tabs[1]:
-        st.header("🤖 Workflow Automation")
-        st.info("Set up workflows to automate your content creation process.")
+        elif mode == "🎥 Text-to-Video (Luma AI)":
+            if not luma_api_key:
+                st.error("Luma AI API Key is required for this mode.")
+                return
+            prompt = st.text_area("Enter a prompt for video generation", "A futuristic cityscape at sunset")
+            aspect_ratio = st.selectbox("Aspect Ratio", ["16:9", "9:16", "1:1", "3:4", "4:3"])
+            loop = st.checkbox("Loop Video", value=False)
 
-        st.subheader("Create a Workflow")
-        workflow_name = st.text_input("Workflow Name")
-        selected_mode = st.selectbox("Select Generation Mode", ["🖼️ Text-to-Image (DALL·E 3)", "🖌️ Image Generation (Replicate AI)"])
-        workflow_prompt = st.text_area("Prompt")
+            if st.button("🎥 Generate Video"):
+                with st.spinner("Generating video... this may take a few minutes."):
+                    try:
+                        # Prepare generation parameters
+                        generation_params = {
+                            "prompt": prompt,
+                            "aspect_ratio": aspect_ratio,
+                            "loop": loop,
+                        }
 
-        if st.button("Save Workflow"):
-            if workflow_name and selected_mode and workflow_prompt:
-                st.session_state.automation_tasks.append({
-                    "name": workflow_name,
-                    "mode": selected_mode,
-                    "prompt": workflow_prompt
-                })
-                st.success("Workflow saved.")
-            else:
-                st.error("Please fill in all the fields.")
+                        generation = luma_client.generations.create(**generation_params)
+                        completed = False
+                        while not completed:
+                            generation = luma_client.generations.get(id=generation.id)
+                            if generation.state == "completed":
+                                completed = True
+                            elif generation.state == "failed":
+                                st.error(f"Generation failed: {generation.failure_reason}")
+                                return
+                            else:
+                                time.sleep(5)
 
-        st.subheader("Your Workflows")
-        if st.session_state.automation_tasks:
-            for idx, task in enumerate(st.session_state.automation_tasks):
-                st.write(f"**Workflow {idx + 1}: {task['name']}**")
-                st.write(f"Mode: {task['mode']}")
-                st.write(f"Prompt: {task['prompt']}")
-                if st.button(f"Run Workflow {idx + 1}", key=f"run_{idx}"):
-                    # Execute the workflow
-                    if task['mode'] == "🖼️ Text-to-Image (DALL·E 3)":
-                        prompt = task['prompt']
-                        # Reuse the generate_text_to_image function
-                        generate_text_to_image(prompt)
-                    elif task['mode'] == "🖌️ Image Generation (Replicate AI)":
-                        prompt = task['prompt']
-                        # Reuse the generate_image_replicate function
-                        generate_image_replicate(prompt)
-        else:
-            st.write("No workflows saved.")
+                        video_url = generation.assets.video
+
+                        # Download video
+                        response = requests.get(video_url)
+                        video_path = f"{generation.id}.mp4"
+                        with open(video_path, "wb") as f:
+                            f.write(response.content)
+
+                        # Analyze video frame
+                        analysis = analyze_video_frame(video_path)
+
+                        st.session_state.generations.append({
+                            "id": generation.id,
+                            "type": "video",
+                            "path": video_path,
+                            "source": "Luma AI",
+                            "prompt": prompt,
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "analysis": analysis
+                        })
+
+                        st.video(video_path)
+                        st.success("Video generated and saved to history.")
+
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
+                        st.error(traceback.format_exc())
+
+        elif mode == "🎥 Text-to-Video (Stability AI)":
+            if not stability_api_key:
+                st.error("Stability AI API Key is required for this mode.")
+                return
+
+            prompt = st.text_area("Enter a text prompt for video generation", height=100)
+
+            if st.button("🎥 Generate Video"):
+                with st.spinner("Generating video..."):
+                    try:
+                        # Stability AI Text-to-Video implementation
+                        # Placeholder since actual API implementation may vary
+                        st.info("Stability AI Text-to-Video is under development.")
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
+                        st.error(traceback.format_exc())
+
+        elif mode == "🎥 Image-to-Video (Stability AI)":
+            if not stability_api_key:
+                st.error("Stability AI API Key is required for this mode.")
+                return
+
+            image_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+
+            if st.button("🎥 Generate Video"):
+                if image_file is None:
+                    st.error("Please upload an image.")
+                    return
+                with st.spinner("Generating video..."):
+                    try:
+                        # Stability AI Image-to-Video implementation
+                        # Placeholder since actual API implementation may vary
+                        st.info("Stability AI Image-to-Video is under development.")
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
+                        st.error(traceback.format_exc())
 
     # History Tab
-    with main_tabs[2]:
+    with main_tabs[1]:
         st.header("📜 Generation History")
         if st.session_state.generations:
             for gen in st.session_state.generations[::-1]:
                 st.subheader(f"ID: {gen['id']} | Type: {gen['type']} | Source: {gen['source']} | Time: {gen['timestamp']}")
-                st.write(f"Prompt: {gen['prompt']}")
-                st.write(f"Analysis: {gen['analysis']}")
+                st.write(f"**Prompt:** {gen['prompt']}")
+                st.write(f"**Analysis:** {gen['analysis']}")
                 if gen['type'] == "image":
                     st.image(gen['path'])
                     with open(gen['path'], "rb") as f:
                         st.download_button("Download Image", f, file_name=os.path.basename(gen['path']))
+                elif gen['type'] == "video":
+                    st.video(gen['path'])
+                    with open(gen['path'], "rb") as f:
+                        st.download_button("Download Video", f, file_name=os.path.basename(gen['path']))
                 st.markdown("---")
         else:
             st.info("No generations yet. Generate content in the Generate tab.")
@@ -335,100 +409,6 @@ def main():
     }
     </style>
     """, unsafe_allow_html=True)
-
-# Function to generate image using DALL·E 3 (Reused in workflows)
-def generate_text_to_image(prompt):
-    openai_api_key = os.environ.get("OPENAI_API_KEY")
-    if not openai_api_key:
-        st.error("OpenAI API Key is required for this feature.")
-        return
-    try:
-        response = requests.post(
-            "https://api.openai.com/v1/images/generations",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {openai_api_key}"
-            },
-            json={
-                "prompt": prompt,
-                "n": 1,
-                "size": "1024x1024"
-            }
-        )
-        response.raise_for_status()
-        data = response.json()
-        img_data = data['data'][0]
-        image_url = img_data['url']
-        image_response = requests.get(image_url)
-        image = Image.open(io.BytesIO(image_response.content))
-
-        image_path = f"workflow_image_{len(st.session_state.generations)+1}.png"
-        image.save(image_path)
-
-        # Analyze image
-        analysis = analyze_image(image)
-
-        st.session_state.generations.append({
-            "id": f"workflow_{len(st.session_state.generations)+1}",
-            "type": "image",
-            "path": image_path,
-            "source": "Workflow Automation",
-            "prompt": prompt,
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "analysis": analysis
-        })
-
-        st.image(image)
-        st.success("Image generated and saved to history.")
-
-    except Exception as e:
-        st.error(f"An error occurred during workflow execution: {e}")
-        st.error(traceback.format_exc())
-
-# Function to generate image using Replicate AI (Reused in workflows)
-def generate_image_replicate(prompt):
-    replicate_api_key = os.environ.get("REPLICATE_API_TOKEN")
-    if not replicate_api_key:
-        st.error("Replicate API Key is required for this feature.")
-        return
-    try:
-        output = replicate.run(
-            "black-forest-labs/flux-1.1-pro",
-            input={
-                "prompt": prompt,
-                "aspect_ratio": "1:1",
-                "output_format": "png",
-                "output_quality": 80,
-                "safety_tolerance": 2,
-                "prompt_upsampling": True
-            }
-        )
-        image_url = output[0]
-        image_response = requests.get(image_url)
-        image = Image.open(io.BytesIO(image_response.content))
-
-        image_path = f"workflow_image_{len(st.session_state.generations)+1}.png"
-        image.save(image_path)
-
-        # Analyze image
-        analysis = analyze_image(image)
-
-        st.session_state.generations.append({
-            "id": f"workflow_{len(st.session_state.generations)+1}",
-            "type": "image",
-            "path": image_path,
-            "source": "Workflow Automation",
-            "prompt": prompt,
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "analysis": analysis
-        })
-
-        st.image(image)
-        st.success("Image generated and saved to history.")
-
-    except Exception as e:
-        st.error(f"An error occurred during workflow execution: {e}")
-        st.error(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
