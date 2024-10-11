@@ -6,14 +6,11 @@ import time
 import base64
 from PIL import Image, ImageEnhance, ImageDraw, ImageFont
 import io
-from moviepy.editor import (
-    VideoFileClip, concatenate_videoclips, TextClip, CompositeVideoClip, vfx
-)
 import os
 import sys
 import numpy as np
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 import threading
 
 # Redirect stderr to stdout
@@ -26,85 +23,8 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []  # Chat history with AI Assistant
 if 'automation_tasks' not in st.session_state:
     st.session_state.automation_tasks = []  # List to store automation tasks
-
-# Functions for Stability AI
-def resize_image(image):
-    width, height = image.size
-    if (width, height) in [(1024, 576), (576, 1024), (768, 768)]:
-        return image
-    else:
-        return image.resize((768, 768))
-
-def generate_image_from_text(api_key, prompt):
-    url = "https://api.stability.ai/v1/generation/stable-diffusion-v1-5/text-to-image"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    data = {
-        "text_prompts": [{"text": prompt}],
-        "cfg_scale": 7,
-        "height": 768,
-        "width": 768,
-        "samples": 1,
-        "steps": 30,
-    }
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        response.raise_for_status()
-        image_data = response.json()['artifacts'][0]['base64']
-        image = Image.open(io.BytesIO(base64.b64decode(image_data)))
-        return image
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error generating image: {str(e)}")
-        return None
-
-def start_video_generation(api_key, image, cfg_scale=1.8, motion_bucket_id=127, seed=0):
-    url = "https://api.stability.ai/v1/generation/image-to-video"
-    headers = {
-        "Authorization": f"Bearer {api_key}"
-    }
-    img_byte_arr = io.BytesIO()
-    image.save(img_byte_arr, format='PNG')
-    img_byte_arr = img_byte_arr.getvalue()
-    files = {
-        "image": ("image.png", img_byte_arr, "image/png")
-    }
-    data = {
-        "seed": str(seed),
-        "cfg_scale": str(cfg_scale),
-        "motion_bucket_id": str(motion_bucket_id)
-    }
-    try:
-        response = requests.post(url, headers=headers, files=files, data=data)
-        response.raise_for_status()
-        return response.json().get('id')
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error starting video generation: {str(e)}")
-        return None
-
-def poll_for_video(api_key, generation_id):
-    url = f"https://api.stability.ai/v1/generation/image-to-video/result/{generation_id}"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Accept": "video/*"
-    }
-    max_attempts = 60
-    for attempt in range(max_attempts):
-        try:
-            response = requests.get(url, headers=headers)
-            if response.status_code == 202:
-                st.write(f"Video generation in progress... Polling attempt {attempt + 1}/{max_attempts}")
-                time.sleep(10)
-            elif response.status_code == 200:
-                return response.content
-            else:
-                response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error polling for video: {str(e)}")
-            return None
-    st.error("Video generation timed out. Please try again.")
-    return None
+if 'assistant' not in st.session_state:
+    st.session_state.assistant = None  # Assistant instance
 
 # Function to analyze images using Replicate's image captioning model (BLIP)
 def analyze_image(image):
@@ -122,30 +42,76 @@ def analyze_image(image):
         st.error(f"Error analyzing image: {str(e)}")
         return "An image was generated."
 
-# Function to extract and analyze a frame from video
-def analyze_video_frame(video_path):
-    try:
-        clip = VideoFileClip(video_path)
-        frame = clip.get_frame(0)  # Get the first frame
-        image = Image.fromarray(frame)
-        caption = analyze_image(image)
-        clip.close()
-        return caption
-    except Exception as e:
-        st.error(f"Error analyzing video: {str(e)}")
-        return "A video was generated."
-
 # Automation task runner
 def run_automation_tasks():
     while True:
         now = datetime.now()
         for task in st.session_state.automation_tasks:
-            task_time = datetime.strptime(task['time'], "%Y-%m-%d %H:%M")
+            task_time = task['time']
             if now >= task_time and not task.get('completed', False):
                 st.write(f"Running automation task: {task['description']}")
                 # Implement task execution based on task['action']
+                if task['action'] == "Generate Text-to-Image":
+                    # Call the text-to-image function
+                    prompt = task['prompt']
+                    generate_text_to_image(prompt)
+                elif task['action'] == "Generate Text-to-Video":
+                    prompt = task['prompt']
+                    generate_text_to_video(prompt)
                 task['completed'] = True
         time.sleep(60)
+
+def generate_text_to_image(prompt):
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    if not openai_api_key:
+        st.error("OpenAI API Key is required for this feature.")
+        return
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/images/generations",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {openai_api_key}"
+            },
+            json={
+                "prompt": prompt,
+                "n": 1,
+                "size": "1024x1024"
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        img_data = data['data'][0]
+        image_url = img_data['url']
+        image_response = requests.get(image_url)
+        image = Image.open(io.BytesIO(image_response.content))
+
+        image_path = f"automated_image_{len(st.session_state.generations)+1}.png"
+        image.save(image_path)
+
+        # Analyze image
+        analysis = analyze_image(image)
+
+        st.session_state.generations.append({
+            "id": f"automated_{len(st.session_state.generations)+1}",
+            "type": "image",
+            "path": image_path,
+            "source": "Automation",
+            "prompt": prompt,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "analysis": analysis
+        })
+
+        st.image(image)
+        st.success("Automated image generated and saved to history.")
+
+    except Exception as e:
+        st.error(f"An error occurred during automation: {e}")
+        st.error(traceback.format_exc())
+
+def generate_text_to_video(prompt):
+    # Placeholder for text-to-video generation in automation
+    st.info(f"Automated video generation is not implemented yet for prompt: {prompt}")
 
 # Start automation thread
 if 'automation_thread' not in st.session_state:
@@ -244,18 +210,18 @@ def main():
             st.info("""
             **All-in-One AI Video Solution**
 
-            This application allows you to generate and edit AI-powered videos and images using various models like Luma AI, Stability AI, and Replicate AI. You can also interact with an AI assistant for guidance and automate tasks.
+            This application allows you to generate and analyze AI-powered images and videos using various models like Luma AI, Stability AI, and Replicate AI. You can also interact with an AI assistant for guidance and automate tasks.
 
             **Features:**
             - Generate videos from text prompts (Luma AI, Stability AI)
             - Generate images from text prompts (DALL·E 3, Replicate AI)
-            - Edit generated content with filters and text overlays
+            - Analyze generated content automatically
             - Chat with an AI assistant
             - Automate content generation tasks
             """)
 
-    # Main content with tabs: Generate, Edit, Automate, History
-    main_tabs = st.tabs(["Generate", "Edit", "Automate", "History"])
+    # Main content with tabs: Generate, Automate, History
+    main_tabs = st.tabs(["Generate", "Automate", "History"])
 
     # Generate Tab
     with main_tabs[0]:
@@ -265,135 +231,10 @@ def main():
         # Mode selection with icons
         mode = st.selectbox("Select Mode", [
             "🖼️ Text-to-Image (DALL·E 3)",
-            "🎥 Text-to-Video (Luma AI)",
-            "🖌️ Image Generation (Replicate AI)",
-            "🎥 Text-to-Video (Stability AI)",
-            "🎥 Image-to-Video (Stability AI)"
+            "🖌️ Image Generation (Replicate AI)"
         ])
 
-        if mode == "🎥 Text-to-Video (Stability AI)":
-            if not stability_api_key:
-                st.error("Stability AI API Key is required for this mode.")
-                return
-
-            prompt = st.text_area("Enter a text prompt for video generation", height=100)
-
-            with st.expander("Settings", expanded=False):
-                cfg_scale = st.slider("CFG Scale", 0.0, 10.0, 7.0)
-                motion_bucket_id = st.slider("Motion Bucket ID", 1, 255, 127)
-                seed = st.number_input("Seed (0 for random)", min_value=0, max_value=4294967294, value=0)
-
-            if st.button("🚀 Generate Video"):
-                if not prompt:
-                    st.error("Please enter a text prompt.")
-                    return
-                with st.spinner("Generating video... this may take a few minutes."):
-                    try:
-                        # Generate initial image from text
-                        image = generate_image_from_text(stability_api_key, prompt)
-                        if image is None:
-                            st.error("Failed to generate initial image.")
-                            return
-
-                        # Start video generation
-                        generation_id = start_video_generation(stability_api_key, image, cfg_scale, motion_bucket_id, seed)
-                        if generation_id is None:
-                            st.error("Failed to start video generation.")
-                            return
-
-                        # Poll for video completion
-                        video_content = poll_for_video(stability_api_key, generation_id)
-                        if video_content is None:
-                            st.error("Failed to retrieve video content.")
-                            return
-
-                        # Save video
-                        video_path = f"stability_text_to_video_{len(st.session_state.generations)+1}.mp4"
-                        with open(video_path, "wb") as f:
-                            f.write(video_content)
-
-                        # Analyze video frame
-                        analysis = analyze_video_frame(video_path)
-
-                        # Save to generations
-                        st.session_state.generations.append({
-                            "id": f"stability_t2v_{len(st.session_state.generations)+1}",
-                            "type": "video",
-                            "path": video_path,
-                            "source": "Stability AI",
-                            "prompt": prompt,
-                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                            "analysis": analysis
-                        })
-
-                        st.video(video_path)
-                        st.success("Video generated and saved to history.")
-
-                    except Exception as e:
-                        st.error(f"An error occurred: {e}")
-                        st.error(traceback.format_exc())
-
-        elif mode == "🎥 Image-to-Video (Stability AI)":
-            if not stability_api_key:
-                st.error("Stability AI API Key is required for this mode.")
-                return
-
-            image_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-
-            with st.expander("Settings", expanded=False):
-                cfg_scale = st.slider("CFG Scale", 0.0, 10.0, 7.0)
-                motion_bucket_id = st.slider("Motion Bucket ID", 1, 255, 127)
-                seed = st.number_input("Seed (0 for random)", min_value=0, max_value=4294967294, value=0)
-
-            if st.button("🚀 Generate Video"):
-                if image_file is None:
-                    st.error("Please upload an image.")
-                    return
-                with st.spinner("Generating video... this may take a few minutes."):
-                    try:
-                        # Load image
-                        image = Image.open(image_file)
-                        image = resize_image(image)
-
-                        # Start video generation
-                        generation_id = start_video_generation(stability_api_key, image, cfg_scale, motion_bucket_id, seed)
-                        if generation_id is None:
-                            st.error("Failed to start video generation.")
-                            return
-
-                        # Poll for video completion
-                        video_content = poll_for_video(stability_api_key, generation_id)
-                        if video_content is None:
-                            st.error("Failed to retrieve video content.")
-                            return
-
-                        # Save video
-                        video_path = f"stability_image_to_video_{len(st.session_state.generations)+1}.mp4"
-                        with open(video_path, "wb") as f:
-                            f.write(video_content)
-
-                        # Analyze video frame
-                        analysis = analyze_video_frame(video_path)
-
-                        # Save to generations
-                        st.session_state.generations.append({
-                            "id": f"stability_i2v_{len(st.session_state.generations)+1}",
-                            "type": "video",
-                            "path": video_path,
-                            "source": "Stability AI",
-                            "prompt": "Image-to-Video",
-                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                            "analysis": analysis
-                        })
-
-                        st.video(video_path)
-                        st.success("Video generated and saved to history.")
-
-                    except Exception as e:
-                        st.error(f"An error occurred: {e}")
-                        st.error(traceback.format_exc())
-
-        elif mode == "🖼️ Text-to-Image (DALL·E 3)":
+        if mode == "🖼️ Text-to-Image (DALL·E 3)":
             if not openai_api_key:
                 st.error("OpenAI API Key is required for this mode.")
                 return
@@ -498,153 +339,20 @@ def main():
                         st.error(f"An error occurred: {e}")
                         st.error(traceback.format_exc())
 
-        elif mode == "🎥 Text-to-Video (Luma AI)":
-            if not luma_api_key:
-                st.error("Luma AI API Key is required for this mode.")
-                return
-            prompt = st.text_area("Prompt", "A futuristic cityscape at sunset")
-            aspect_ratio = st.selectbox("Aspect Ratio", ["9:16", "16:9", "1:1", "3:4", "4:3"])
-            loop = st.checkbox("Loop Video", value=False)
-
-            # Camera Motions
-            st.subheader("Camera Motion")
-            try:
-                supported_camera_motions = luma_client.generations.camera_motion.list()
-                camera_motion = st.selectbox("Select Camera Motion", ["None"] + supported_camera_motions)
-                if camera_motion != "None":
-                    prompt = f"{prompt}, {camera_motion}"
-            except Exception as e:
-                st.error(f"Could not fetch camera motions: {e}")
-                camera_motion = None
-
-            # Keyframes
-            st.subheader("Keyframes")
-            keyframe_option = st.selectbox(
-                "Keyframe Options",
-                ["None", "Start Image", "End Image", "Start and End Image", "Start Generation", "End Generation", "Start and End Generation"]
-            )
-            keyframes = {}
-
-            if keyframe_option in ["Start Image", "Start and End Image"]:
-                start_image_url = st.text_input("Start Image URL")
-                if start_image_url:
-                    keyframes["frame0"] = {
-                        "type": "image",
-                        "url": start_image_url
-                    }
-
-            if keyframe_option in ["End Image", "Start and End Image"]:
-                end_image_url = st.text_input("End Image URL")
-                if end_image_url:
-                    keyframes["frame1"] = {
-                        "type": "image",
-                        "url": end_image_url
-                    }
-
-            if keyframe_option in ["Start Generation", "Start and End Generation"]:
-                start_generation_id = st.text_input("Start Generation ID")
-                if start_generation_id:
-                    keyframes["frame0"] = {
-                        "type": "generation",
-                        "id": start_generation_id
-                    }
-
-            if keyframe_option in ["End Generation", "Start and End Generation"]:
-                end_generation_id = st.text_input("End Generation ID")
-                if end_generation_id:
-                    keyframes["frame1"] = {
-                        "type": "generation",
-                        "id": end_generation_id
-                    }
-
-            # Generate button
-            if st.button("🚀 Generate Video"):
-                with st.spinner("Generating video... this may take a few minutes."):
-                    try:
-                        # Prepare generation parameters
-                        generation_params = {
-                            "prompt": prompt,
-                            "aspect_ratio": aspect_ratio,
-                            "loop": loop,
-                        }
-
-                        if keyframes:
-                            generation_params["keyframes"] = keyframes
-
-                        generation = luma_client.generations.create(**generation_params)
-                        completed = False
-                        while not completed:
-                            generation = luma_client.generations.get(id=generation.id)
-                            if generation.state == "completed":
-                                completed = True
-                            elif generation.state == "failed":
-                                st.error(f"Generation failed: {generation.failure_reason}")
-                                return
-                            else:
-                                time.sleep(5)
-
-                        video_url = generation.assets.video
-
-                        # Download video
-                        response = requests.get(video_url)
-                        video_path = f"{generation.id}.mp4"
-                        with open(video_path, "wb") as f:
-                            f.write(response.content)
-
-                        # Analyze video frame
-                        analysis = analyze_video_frame(video_path)
-
-                        st.session_state.generations.append({
-                            "id": generation.id,
-                            "type": "video",
-                            "path": video_path,
-                            "source": "Luma AI",
-                            "prompt": prompt,
-                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                            "analysis": analysis
-                        })
-
-                        st.video(video_path)
-                        st.success("Video generated and saved to history.")
-
-                    except Exception as e:
-                        st.error(f"An error occurred: {e}")
-                        st.error(traceback.format_exc())
-
-    # Edit Tab
-    with main_tabs[1]:
-        st.header("✏️ Edit Generations")
-        if not st.session_state.generations:
-            st.info("No generations available to edit.")
-        else:
-            # Select generation to edit
-            gen_options = [f"{gen['id']} ({gen['type']}) - {gen['timestamp']}" for gen in st.session_state.generations]
-            selected_gen = st.selectbox("Select a generation to edit", gen_options)
-            selected_gen_index = gen_options.index(selected_gen)
-            gen_to_edit = st.session_state.generations[selected_gen_index]
-
-            if gen_to_edit['type'] == "video":
-                st.video(gen_to_edit['path'])
-            elif gen_to_edit['type'] == "image":
-                st.image(gen_to_edit['path'])
-
-            # Video and Image Editing Tools
-            # [Include editing tools as per previous code]
-
     # Automate Tab
-    with main_tabs[2]:
+    with main_tabs[1]:
         st.header("🤖 AI-Powered Automation")
         st.info("Set up automated tasks for content generation.")
         task_description = st.text_input("Task Description")
-        task_time = st.text_input("Scheduled Time (YYYY-MM-DD HH:MM)")
-        task_action = st.selectbox("Action", ["Generate Text-to-Image", "Generate Text-to-Video"])
+        task_datetime = st.datetime_input("Scheduled Time", datetime.now() + timedelta(minutes=1))
+        task_action = st.selectbox("Action", ["Generate Text-to-Image"])
         task_prompt = st.text_area("Prompt")
 
         if st.button("Add Automation Task"):
-            if task_description and task_time and task_action and task_prompt:
+            if task_description and task_datetime and task_action and task_prompt:
                 st.session_state.automation_tasks.append({
                     "description": task_description,
-                    "time": task_time,
+                    "time": task_datetime,
                     "action": task_action,
                     "prompt": task_prompt,
                     "completed": False
@@ -661,18 +369,14 @@ def main():
             st.write("No scheduled tasks.")
 
     # History Tab
-    with main_tabs[3]:
+    with main_tabs[2]:
         st.header("📜 Generation History")
         if st.session_state.generations:
             for gen in st.session_state.generations[::-1]:
                 st.subheader(f"ID: {gen['id']} | Type: {gen['type']} | Source: {gen['source']} | Time: {gen['timestamp']}")
                 st.write(f"Prompt: {gen['prompt']}")
                 st.write(f"Analysis: {gen['analysis']}")
-                if gen['type'] == "video":
-                    st.video(gen['path'])
-                    with open(gen['path'], "rb") as f:
-                        st.download_button("Download Video", f, file_name=os.path.basename(gen['path']))
-                elif gen['type'] == "image":
+                if gen['type'] == "image":
                     st.image(gen['path'])
                     with open(gen['path'], "rb") as f:
                         st.download_button("Download Image", f, file_name=os.path.basename(gen['path']))
