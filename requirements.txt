@@ -6,3 +6,4 @@ moviepy
 numpy
 replicate
 openai
+opencv-python
