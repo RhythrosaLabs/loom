@@ -4,14 +4,13 @@ import replicate
 import requests
 import time
 import base64
-from PIL import Image, ImageEnhance, ImageDraw, ImageFont
+from PIL import Image
 import io
 import os
 import sys
 import numpy as np
 import traceback
 from datetime import datetime, timedelta
-import threading
 
 # Redirect stderr to stdout
 sys.stderr = sys.stdout
@@ -42,85 +41,9 @@ def analyze_image(image):
         st.error(f"Error analyzing image: {str(e)}")
         return "An image was generated."
 
-# Automation task runner
-def run_automation_tasks():
-    while True:
-        now = datetime.now()
-        for task in st.session_state.automation_tasks:
-            task_time = task['time']
-            if now >= task_time and not task.get('completed', False):
-                st.write(f"Running automation task: {task['description']}")
-                # Implement task execution based on task['action']
-                if task['action'] == "Generate Text-to-Image":
-                    # Call the text-to-image function
-                    prompt = task['prompt']
-                    generate_text_to_image(prompt)
-                elif task['action'] == "Generate Text-to-Video":
-                    prompt = task['prompt']
-                    generate_text_to_video(prompt)
-                task['completed'] = True
-        time.sleep(60)
-
-def generate_text_to_image(prompt):
-    openai_api_key = os.environ.get("OPENAI_API_KEY")
-    if not openai_api_key:
-        st.error("OpenAI API Key is required for this feature.")
-        return
-    try:
-        response = requests.post(
-            "https://api.openai.com/v1/images/generations",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {openai_api_key}"
-            },
-            json={
-                "prompt": prompt,
-                "n": 1,
-                "size": "1024x1024"
-            }
-        )
-        response.raise_for_status()
-        data = response.json()
-        img_data = data['data'][0]
-        image_url = img_data['url']
-        image_response = requests.get(image_url)
-        image = Image.open(io.BytesIO(image_response.content))
-
-        image_path = f"automated_image_{len(st.session_state.generations)+1}.png"
-        image.save(image_path)
-
-        # Analyze image
-        analysis = analyze_image(image)
-
-        st.session_state.generations.append({
-            "id": f"automated_{len(st.session_state.generations)+1}",
-            "type": "image",
-            "path": image_path,
-            "source": "Automation",
-            "prompt": prompt,
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "analysis": analysis
-        })
-
-        st.image(image)
-        st.success("Automated image generated and saved to history.")
-
-    except Exception as e:
-        st.error(f"An error occurred during automation: {e}")
-        st.error(traceback.format_exc())
-
-def generate_text_to_video(prompt):
-    # Placeholder for text-to-video generation in automation
-    st.info(f"Automated video generation is not implemented yet for prompt: {prompt}")
-
-# Start automation thread
-if 'automation_thread' not in st.session_state:
-    st.session_state.automation_thread = threading.Thread(target=run_automation_tasks, daemon=True)
-    st.session_state.automation_thread.start()
-
 def main():
-    st.set_page_config(page_title="AI Video Suite", layout="wide")
-    st.title("🚀 All-in-One AI Video Solution")
+    st.set_page_config(page_title="AI Content Suite", layout="wide")
+    st.title("🚀 All-in-One AI Content Solution")
 
     # Sidebar with tabs: Settings, Chat, About
     with st.sidebar:
@@ -132,7 +55,6 @@ def main():
             # API Keys
             st.subheader("API Keys")
             luma_api_key = st.text_input("Luma AI API Key", type="password")
-            stability_api_key = st.text_input("Stability AI API Key", type="password")
             replicate_api_key = st.text_input("Replicate API Key", type="password")
             openai_api_key = st.text_input("OpenAI API Key", type="password")
 
@@ -208,16 +130,15 @@ def main():
         with sidebar_tabs[2]:
             st.header("About")
             st.info("""
-            **All-in-One AI Video Solution**
+            **All-in-One AI Content Solution**
 
-            This application allows you to generate and analyze AI-powered images and videos using various models like Luma AI, Stability AI, and Replicate AI. You can also interact with an AI assistant for guidance and automate tasks.
+            This application allows you to generate and analyze AI-powered images using various models like Luma AI, Replicate AI, and OpenAI's DALL·E 3. You can also interact with an AI assistant for guidance and automate tasks.
 
             **Features:**
-            - Generate videos from text prompts (Luma AI, Stability AI)
             - Generate images from text prompts (DALL·E 3, Replicate AI)
             - Analyze generated content automatically
             - Chat with an AI assistant
-            - Automate content generation tasks
+            - Automate content generation workflows
             """)
 
     # Main content with tabs: Generate, Automate, History
@@ -341,32 +262,43 @@ def main():
 
     # Automate Tab
     with main_tabs[1]:
-        st.header("🤖 AI-Powered Automation")
-        st.info("Set up automated tasks for content generation.")
-        task_description = st.text_input("Task Description")
-        task_datetime = st.datetime_input("Scheduled Time", datetime.now() + timedelta(minutes=1))
-        task_action = st.selectbox("Action", ["Generate Text-to-Image"])
-        task_prompt = st.text_area("Prompt")
+        st.header("🤖 Workflow Automation")
+        st.info("Set up workflows to automate your content creation process.")
 
-        if st.button("Add Automation Task"):
-            if task_description and task_datetime and task_action and task_prompt:
+        st.subheader("Create a Workflow")
+        workflow_name = st.text_input("Workflow Name")
+        selected_mode = st.selectbox("Select Generation Mode", ["🖼️ Text-to-Image (DALL·E 3)", "🖌️ Image Generation (Replicate AI)"])
+        workflow_prompt = st.text_area("Prompt")
+
+        if st.button("Save Workflow"):
+            if workflow_name and selected_mode and workflow_prompt:
                 st.session_state.automation_tasks.append({
-                    "description": task_description,
-                    "time": task_datetime,
-                    "action": task_action,
-                    "prompt": task_prompt,
-                    "completed": False
+                    "name": workflow_name,
+                    "mode": selected_mode,
+                    "prompt": workflow_prompt
                 })
-                st.success("Automation task added.")
+                st.success("Workflow saved.")
             else:
                 st.error("Please fill in all the fields.")
 
-        st.subheader("Scheduled Tasks")
+        st.subheader("Your Workflows")
         if st.session_state.automation_tasks:
-            for task in st.session_state.automation_tasks:
-                st.write(f"Task: {task['description']}, Time: {task['time']}, Action: {task['action']}, Completed: {task['completed']}")
+            for idx, task in enumerate(st.session_state.automation_tasks):
+                st.write(f"**Workflow {idx + 1}: {task['name']}**")
+                st.write(f"Mode: {task['mode']}")
+                st.write(f"Prompt: {task['prompt']}")
+                if st.button(f"Run Workflow {idx + 1}", key=f"run_{idx}"):
+                    # Execute the workflow
+                    if task['mode'] == "🖼️ Text-to-Image (DALL·E 3)":
+                        prompt = task['prompt']
+                        # Reuse the generate_text_to_image function
+                        generate_text_to_image(prompt)
+                    elif task['mode'] == "🖌️ Image Generation (Replicate AI)":
+                        prompt = task['prompt']
+                        # Reuse the generate_image_replicate function
+                        generate_image_replicate(prompt)
         else:
-            st.write("No scheduled tasks.")
+            st.write("No workflows saved.")
 
     # History Tab
     with main_tabs[2]:
@@ -403,6 +335,100 @@ def main():
     }
     </style>
     """, unsafe_allow_html=True)
+
+# Function to generate image using DALL·E 3 (Reused in workflows)
+def generate_text_to_image(prompt):
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    if not openai_api_key:
+        st.error("OpenAI API Key is required for this feature.")
+        return
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/images/generations",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {openai_api_key}"
+            },
+            json={
+                "prompt": prompt,
+                "n": 1,
+                "size": "1024x1024"
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        img_data = data['data'][0]
+        image_url = img_data['url']
+        image_response = requests.get(image_url)
+        image = Image.open(io.BytesIO(image_response.content))
+
+        image_path = f"workflow_image_{len(st.session_state.generations)+1}.png"
+        image.save(image_path)
+
+        # Analyze image
+        analysis = analyze_image(image)
+
+        st.session_state.generations.append({
+            "id": f"workflow_{len(st.session_state.generations)+1}",
+            "type": "image",
+            "path": image_path,
+            "source": "Workflow Automation",
+            "prompt": prompt,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "analysis": analysis
+        })
+
+        st.image(image)
+        st.success("Image generated and saved to history.")
+
+    except Exception as e:
+        st.error(f"An error occurred during workflow execution: {e}")
+        st.error(traceback.format_exc())
+
+# Function to generate image using Replicate AI (Reused in workflows)
+def generate_image_replicate(prompt):
+    replicate_api_key = os.environ.get("REPLICATE_API_TOKEN")
+    if not replicate_api_key:
+        st.error("Replicate API Key is required for this feature.")
+        return
+    try:
+        output = replicate.run(
+            "black-forest-labs/flux-1.1-pro",
+            input={
+                "prompt": prompt,
+                "aspect_ratio": "1:1",
+                "output_format": "png",
+                "output_quality": 80,
+                "safety_tolerance": 2,
+                "prompt_upsampling": True
+            }
+        )
+        image_url = output[0]
+        image_response = requests.get(image_url)
+        image = Image.open(io.BytesIO(image_response.content))
+
+        image_path = f"workflow_image_{len(st.session_state.generations)+1}.png"
+        image.save(image_path)
+
+        # Analyze image
+        analysis = analyze_image(image)
+
+        st.session_state.generations.append({
+            "id": f"workflow_{len(st.session_state.generations)+1}",
+            "type": "image",
+            "path": image_path,
+            "source": "Workflow Automation",
+            "prompt": prompt,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "analysis": analysis
+        })
+
+        st.image(image)
+        st.success("Image generated and saved to history.")
+
+    except Exception as e:
+        st.error(f"An error occurred during workflow execution: {e}")
+        st.error(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
