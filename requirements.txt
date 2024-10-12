@@ -7,3 +7,4 @@ numpy
 replicate
 openai
 opencv-python
+runway-ml
