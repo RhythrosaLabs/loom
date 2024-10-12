@@ -8,3 +8,4 @@ replicate
 openai
 opencv-python
 runwayml
+httpx
