@@ -446,22 +446,24 @@ def main():
     st.title("🎬 AI Video Suite")
 
     # -------------------------
-    # Sidebar Navigation
+    # Sidebar Navigation with Tabs
     # -------------------------
-    sidebar_tab = st.sidebar.radio("Navigate", ["API Keys", "About"], index=0)
+    sidebar_tabs = st.sidebar.tabs(["🔑 API Keys", "ℹ️ About"])
 
-    if sidebar_tab == "API Keys":
-        st.sidebar.header("🔑 API Keys")
+    # API Keys Tab
+    with sidebar_tabs[0]:
+        st.header("🔑 API Keys")
         # Use unique keys for each input field to prevent duplicate element IDs
-        st.sidebar.text_input("Enter your Luma AI API Key", type="password", key="luma_api_key")
-        st.sidebar.text_input("Enter your Stability AI API Key", type="password", key="stability_api_key")
-        st.sidebar.text_input("Enter your Replicate API Key", type="password", key="replicate_api_key")
-        st.sidebar.text_input("Enter your OpenAI API Key (for DALL·E)", type="password", key="openai_api_key")
-        st.sidebar.text_input("Enter your RunwayML API Key", type="password", key="runway_api_key")
+        st.text_input("Enter your Luma AI API Key", type="password", key="luma_api_key")
+        st.text_input("Enter your Stability AI API Key", type="password", key="stability_api_key")
+        st.text_input("Enter your Replicate API Key", type="password", key="replicate_api_key")
+        st.text_input("Enter your OpenAI API Key (for DALL·E)", type="password", key="openai_api_key")
+        st.text_input("Enter your RunwayML API Key", type="password", key="runway_api_key")
 
-    elif sidebar_tab == "About":
-        st.sidebar.header("ℹ️ About")
-        st.sidebar.markdown("""
+    # About Tab
+    with sidebar_tabs[1]:
+        st.header("ℹ️ About")
+        st.markdown("""
         ### **AI Video Suite**
 
         **AI Video Suite** is an all-in-one platform that leverages multiple artificial intelligence services to generate stunning images and videos based on user prompts. Whether you're a content creator, marketer, or simply an AI enthusiast, this application provides a seamless experience to create and manage AI-generated media.
@@ -692,7 +694,6 @@ def main():
                     st.error("❗ Please enter a text prompt.")
                     st.stop()
 
-                # Call the combined function for Text-to-Video
                 try:
                     st.success("🔄 Generating initial image from text prompt...")
                     image = generate_image_from_text_stability(stability_api_key, prompt)
