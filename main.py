@@ -14,7 +14,6 @@ import sys
 import numpy as np
 import traceback
 import zipfile
-import openai  # For DALL·E integration
 
 # Redirect stderr to stdout to avoid issues with logging in some environments
 sys.stderr = sys.stdout
@@ -79,21 +78,29 @@ def generate_image_from_text_flux(prompt, aspect_ratio, output_format, output_qu
         return None
 
 def generate_image_from_text_dalle(api_key, prompt, size, quality):
-    openai.api_key = api_key
+    url = "https://api.openai.com/v1/images/generations"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    data = {
+        "model": "dall-e-3",
+        "prompt": prompt,
+        "n": 1,
+        "size": size,
+        "response_format": "url",
+        "quality": quality  # "standard" or "hd"
+    }
     try:
-        response = openai.Image.create(
-            model="dall-e-3",
-            prompt=prompt,
-            n=1,
-            size=size,
-            response_format="url",
-            quality=quality
-        )
-        image_url = response['data'][0]['url']
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        response_data = response.json()
+        image_url = response_data['data'][0]['url']
         # Optionally, you can access the revised prompt
-        revised_prompt = response['data'][0].get('revised_prompt', '')
+        revised_prompt = response_data['data'][0].get('revised_prompt', '')
         if revised_prompt:
             st.write(f"Revised Prompt: {revised_prompt}")
+        # Download image
         image_response = requests.get(image_url)
         image = Image.open(io.BytesIO(image_response.content))
         return image
@@ -311,7 +318,14 @@ def main():
         return
 
     # Initialize clients
-    luma_client = LumaAI(auth_token=luma_api_key) if luma_api_key else None
+    if luma_api_key:
+        try:
+            luma_client = LumaAI(auth_token=luma_api_key)
+        except Exception as e:
+            st.error(f"Error initializing Luma AI client: {e}")
+            luma_client = None
+    else:
+        luma_client = None
 
     # Tabs
     tab1, tab2, tab3 = st.tabs(["Generator", "Images", "Videos"])
@@ -375,8 +389,9 @@ def main():
                                 prompt_upsampling=True
                             )
                         elif snapshot_generator == "DALL·E":
-                            size = "1024x1024"
-                            if aspect_ratio == "16:9":
+                            if aspect_ratio == "1:1":
+                                size = "1024x1024"
+                            elif aspect_ratio == "16:9":
                                 size = "1792x1024"
                             elif aspect_ratio == "9:16":
                                 size = "1024x1792"
@@ -722,9 +737,10 @@ def main():
         # Add download all button
         if st.session_state.generated_images or st.session_state.generated_videos:
             zip_path = create_zip_file(st.session_state.generated_images, st.session_state.generated_videos)
-            with open(zip_path, "rb") as f:
-                st.download_button("Download All Content (ZIP)", f, file_name="generated_content.zip")
-            os.remove(zip_path)
+            if zip_path:
+                with open(zip_path, "rb") as f:
+                    st.download_button("Download All Content (ZIP)", f, file_name="generated_content.zip")
+                os.remove(zip_path)
 
     # -------------------------------------------
     # Footer with style
