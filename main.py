@@ -1,5 +1,6 @@
 import streamlit as st
 from lumaai import LumaAI
+import runwayml
 import replicate
 import requests
 import time
@@ -99,7 +100,7 @@ def generate_image_from_text_dalle(api_key, prompt, size, quality):
         # Optionally, you can access the revised prompt
         revised_prompt = response_data['data'][0].get('revised_prompt', '')
         if revised_prompt:
-            st.write(f"Revised Prompt: {revised_prompt}")
+            st.write(f"**Revised Prompt:** {revised_prompt}")
         # Download image
         image_response = requests.get(image_url)
         image = Image.open(io.BytesIO(image_response.content))
@@ -109,7 +110,7 @@ def generate_image_from_text_dalle(api_key, prompt, size, quality):
         st.error(traceback.format_exc())
         return None
 
-def start_video_generation(api_key, image, cfg_scale=1.8, motion_bucket_id=127, seed=0):
+def start_video_generation_stability(api_key, image, cfg_scale=1.8, motion_bucket_id=127, seed=0):
     url = "https://api.stability.ai/v2beta/image-to-video"
     headers = {
         "Authorization": f"Bearer {api_key}"
@@ -130,10 +131,10 @@ def start_video_generation(api_key, image, cfg_scale=1.8, motion_bucket_id=127, 
         response.raise_for_status()
         return response.json().get('id')
     except requests.exceptions.RequestException as e:
-        st.error(f"Error starting video generation: {str(e)}")
+        st.error(f"Error starting video generation with Stability AI: {str(e)}")
         return None
 
-def poll_for_video(api_key, generation_id):
+def poll_for_video_stability(api_key, generation_id):
     url = f"https://api.stability.ai/v2beta/image-to-video/result/{generation_id}"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -151,9 +152,9 @@ def poll_for_video(api_key, generation_id):
             else:
                 response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            st.error(f"Error polling for video: {str(e)}")
+            st.error(f"Error polling for video with Stability AI: {str(e)}")
             return None
-    st.error("Video generation timed out. Please try again.")
+    st.error("Video generation timed out with Stability AI. Please try again.")
     return None
 
 def validate_video_clip(video_path):
@@ -298,26 +299,187 @@ def display_images_in_grid(images, columns=3):
                     st.image(images[i + j], use_column_width=True, caption=f"Image {i + j + 1}")
                     st.markdown(f"<p style='text-align: center;'>Image {i + j + 1}</p>", unsafe_allow_html=True)
 
+def generate_video_runwayml(runway_api_key, prompt_image_url, prompt_text):
+    client = runwayml.RunwayML(api_key=runway_api_key)
+    try:
+        response = client.image_to_video.create(
+            model="gen3a_turbo",
+            prompt_image=prompt_image_url,
+            prompt_text=prompt_text,
+        )
+        generation_id = response.id
+        st.write(f"RunwayML Video Generation ID: {generation_id}")
+        # Poll until completion
+        while True:
+            generation = client.image_to_video.get(id=generation_id)
+            if generation.state == "completed":
+                st.success("RunwayML Video Generation Completed.")
+                video_url = generation.assets.video
+                # Download video
+                video_response = requests.get(video_url)
+                video_path = f"runwayml_video_{generation_id}.mp4"
+                with open(video_path, "wb") as f:
+                    f.write(video_response.content)
+                st.write(f"Saved RunwayML video to {video_path}")
+                st.session_state.generated_videos.append(video_path)
+                st.session_state.final_video = video_path
+                st.video(video_path)
+                break
+            elif generation.state == "failed":
+                st.error(f"RunwayML Video Generation Failed: {generation.failure_reason}")
+                break
+            else:
+                st.write("RunwayML Video Generation in progress... Waiting for completion.")
+                time.sleep(10)
+    except runwayml.APIConnectionError as e:
+        st.error("RunwayML API Connection Error.")
+        st.error(e.__cause__)
+    except runwayml.RateLimitError as e:
+        st.error("RunwayML Rate Limit Exceeded. Please wait and try again.")
+    except runwayml.APIStatusError as e:
+        st.error(f"RunwayML API returned an error: {e.status_code}")
+        st.error(e.response)
+    except Exception as e:
+        st.error(f"An unexpected error occurred with RunwayML: {e}")
+        st.error(traceback.format_exc())
+
 def main():
     st.set_page_config(page_title="AI Video Suite", layout="wide")
     st.title("All-in-One AI Video Solution")
 
-    # Sidebar for API Keys
-    st.sidebar.header("API Keys")
-    luma_api_key = st.sidebar.text_input("Enter your Luma AI API Key", type="password")
-    stability_api_key = st.sidebar.text_input("Enter your Stability AI API Key", type="password")
-    replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
-    openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key (for DALL·E)", type="password")
+    # Sidebar with two tabs: API Keys | About
+    sidebar_tab = st.sidebar.radio("Navigate", ["API Keys", "About"])
 
+    if sidebar_tab == "API Keys":
+        st.sidebar.header("API Keys")
+        luma_api_key = st.sidebar.text_input("Enter your Luma AI API Key", type="password")
+        stability_api_key = st.sidebar.text_input("Enter your Stability AI API Key", type="password")
+        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
+        openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key (for DALL·E)", type="password")
+        runway_api_key = st.sidebar.text_input("Enter your RunwayML API Key", type="password")
+    elif sidebar_tab == "About":
+        st.sidebar.header("About")
+        st.sidebar.markdown("""
+        ### AI Video Suite
+
+        **AI Video Suite** is an all-in-one platform that leverages multiple artificial intelligence services to generate stunning images and videos based on user prompts. Whether you're a content creator, marketer, or simply an AI enthusiast, this application provides a seamless experience to create and manage AI-generated media.
+
+        #### Features
+
+        - **Snapshot Mode:** Generate a series of images using DALL·E, Stable Diffusion, or Flux and compile them into a cohesive video.
+        - **Text-to-Video (Stability AI):** Create dynamic videos from textual descriptions, allowing for detailed customization of video segments and transitions.
+        - **Image-to-Video (Stability AI):** Transform your existing images into engaging videos with customizable motion and effects.
+        - **Image Generation (Replicate AI):** Utilize Replicate AI's Flux model to generate high-quality images based on your prompts.
+        - **RunwayML Image-to-Video:** Generate videos from images and text prompts using RunwayML's powerful models.
+        - **Luma Integration:** Enhance your video creations with advanced camera motions and keyframe management using Luma AI.
+
+        #### Supported AI Services
+
+        - **DALL·E 3 (OpenAI):** Generate detailed and high-resolution images from textual prompts.
+        - **Stable Diffusion (Stability AI):** Create versatile images with various configurations.
+        - **Flux (Replicate AI):** Produce unique images with customizable quality and safety settings.
+        - **RunwayML:** Generate videos from images and prompts using advanced AI models.
+        - **Luma AI:** Advanced video generation with camera motion and keyframe support.
+
+        #### How to Use
+
+        1. **API Keys:**
+           - Navigate to the **API Keys** tab in the sidebar.
+           - Enter your respective API keys for **Luma AI**, **Stability AI**, **Replicate AI**, **OpenAI**, and **RunwayML**.
+           - Ensure that your API keys are valid and have the necessary permissions.
+
+        2. **Generate Content:**
+           - Go to the **Generator** tab.
+           - Select your desired mode (e.g., **Snapshot Mode**, **RunwayML Image-to-Video**).
+           - Input your prompts and adjust settings as needed.
+           - Click on the **Generate** button to initiate the creation process.
+
+        3. **View and Download:**
+           - Generated images will appear in the **Images** tab.
+           - Generated videos will be available in the **Videos** tab, where you can view and download them individually or as a ZIP file.
+
+        #### Getting Started
+
+        - **Installation:**
+          Ensure you have Python installed. Install the required dependencies using:
+          ```bash
+          pip install streamlit requests pillow moviepy numpy replicate luma-ai runwayml
+          ```
+
+        - **Running the App:**
+          Save the code to a file, e.g., `ai_video_suite.py`, and run:
+          ```bash
+          streamlit run ai_video_suite.py
+          ```
+          The app will open in your default web browser.
+
+        #### Important Notes
+
+        - **API Usage and Costs:**
+          Be mindful of the usage limits and potential costs associated with each API. Monitor your usage to avoid unexpected charges.
+
+        - **Security:**
+          Never share or expose your API keys publicly. Ensure they are kept secure to prevent unauthorized access.
+
+        - **Performance:**
+          Generating a large number of images or complex videos may consume significant resources and time. Adjust your settings accordingly.
+
+        #### Support
+
+        If you encounter any issues or have questions, please refer to the documentation of the respective AI services or reach out to our support team.
+
+        #### Credits
+
+        - **OpenAI:** [https://openai.com/](https://openai.com/)
+        - **Stability AI:** [https://stability.ai/](https://stability.ai/)
+        - **Replicate AI:** [https://replicate.com/](https://replicate.com/)
+        - **RunwayML:** [https://runwayml.com/](https://runwayml.com/)
+        - **Luma AI:** [https://www.luma.ai/](https://www.luma.ai/)
+
+        ---
+        """)
+
+    # Depending on the sidebar_tab selection, assign variables accordingly
+    if sidebar_tab == "API Keys":
+        # Assign API keys from the sidebar inputs
+        luma_api_key = st.sidebar.text_input("Enter your Luma AI API Key", type="password")
+        stability_api_key = st.sidebar.text_input("Enter your Stability AI API Key", type="password")
+        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
+        openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key (for DALL·E)", type="password")
+        runway_api_key = st.sidebar.text_input("Enter your RunwayML API Key", type="password")
+    elif sidebar_tab == "About":
+        # No need to assign API keys when in About tab
+        luma_api_key = st.session_state.get('luma_api_key', '')
+        stability_api_key = st.session_state.get('stability_api_key', '')
+        replicate_api_key = st.session_state.get('replicate_api_key', '')
+        openai_api_key = st.session_state.get('openai_api_key', '')
+        runway_api_key = st.session_state.get('runway_api_key', '')
+    
     # Set Replicate API token
     if replicate_api_key:
         os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
 
-    if not luma_api_key and not stability_api_key and not replicate_api_key and not openai_api_key:
-        st.warning("Please enter at least one API Key to proceed.")
+    # Save API keys to session state
+    if sidebar_tab == "API Keys":
+        st.session_state.luma_api_key = luma_api_key
+        st.session_state.stability_api_key = stability_api_key
+        st.session_state.replicate_api_key = replicate_api_key
+        st.session_state.openai_api_key = openai_api_key
+        st.session_state.runway_api_key = runway_api_key
+
+    # Retrieve API keys from session state
+    luma_api_key = st.session_state.get('luma_api_key', '')
+    stability_api_key = st.session_state.get('stability_api_key', '')
+    replicate_api_key = st.session_state.get('replicate_api_key', '')
+    openai_api_key = st.session_state.get('openai_api_key', '')
+    runway_api_key = st.session_state.get('runway_api_key', '')
+
+    # Prompt the user to enter at least one API key if none are provided
+    if not luma_api_key and not stability_api_key and not replicate_api_key and not openai_api_key and not runway_api_key:
+        st.warning("Please enter at least one API Key in the **API Keys** tab to proceed.")
         return
 
-    # Initialize clients
+    # Initialize Luma AI client if API key is provided
     if luma_api_key:
         try:
             luma_client = LumaAI(auth_token=luma_api_key)
@@ -327,7 +489,7 @@ def main():
     else:
         luma_client = None
 
-    # Tabs
+    # Tabs for Generator, Images, Videos
     tab1, tab2, tab3 = st.tabs(["Generator", "Images", "Videos"])
 
     # -------------------------------------------
@@ -342,6 +504,7 @@ def main():
             "Text-to-Video (Stability AI)",
             "Image-to-Video (Stability AI)",
             "Image Generation (Replicate AI)",
+            "RunwayML Image-to-Video",
             "Luma"
         ])
 
@@ -449,10 +612,10 @@ def main():
 
                     for i in range(num_segments):
                         st.write(f"Generating video segment {i+1}/{num_segments}...")
-                        generation_id = start_video_generation(stability_api_key, current_image, cfg_scale, motion_bucket_id, seed)
+                        generation_id = start_video_generation_stability(stability_api_key, current_image, cfg_scale, motion_bucket_id, seed)
 
                         if generation_id:
-                            video_content = poll_for_video(stability_api_key, generation_id)
+                            video_content = poll_for_video_stability(stability_api_key, generation_id)
 
                             if video_content:
                                 video_path = f"video_segment_{i+1}.mp4"
@@ -528,10 +691,10 @@ def main():
                 st.session_state.generated_images.append(image)
 
                 st.write("Generating video from uploaded image...")
-                generation_id = start_video_generation(stability_api_key, image, cfg_scale, motion_bucket_id, seed)
+                generation_id = start_video_generation_stability(stability_api_key, image, cfg_scale, motion_bucket_id, seed)
 
                 if generation_id:
-                    video_content = poll_for_video(stability_api_key, generation_id)
+                    video_content = poll_for_video_stability(stability_api_key, generation_id)
 
                     if video_content:
                         video_path = "image_to_video.mp4"
@@ -590,6 +753,27 @@ def main():
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
                         st.error(traceback.format_exc())
+
+        elif mode == "RunwayML Image-to-Video":
+            if not runway_api_key:
+                st.error("RunwayML API Key is required for this mode.")
+                return
+            prompt_image_url = st.text_input("Enter the URL of the prompt image")
+            prompt_text = st.text_area("Enter the text prompt for the video", height=100)
+
+            if st.button("Generate Video with RunwayML"):
+                if not prompt_image_url:
+                    st.error("Please enter the URL of the prompt image.")
+                    return
+                if not prompt_text:
+                    st.error("Please enter a text prompt.")
+                    return
+                try:
+                    st.write("Initiating RunwayML video generation...")
+                    generate_video_runwayml(runway_api_key, prompt_image_url, prompt_text)
+                except Exception as e:
+                    st.error(f"An unexpected error occurred with RunwayML: {e}")
+                    st.error(traceback.format_exc())
 
         elif mode == "Luma":
             if not luma_api_key:
@@ -720,7 +904,7 @@ def main():
             for i, video_path in enumerate(st.session_state.generated_videos):
                 if os.path.exists(video_path):
                     st.video(video_path)
-                    st.write(f"Video {i+1}")
+                    st.write(f"**Video {i+1}**")
                     with open(video_path, "rb") as f:
                         st.download_button(f"Download Video {i+1}", f, file_name=f"video_{i+1}.mp4")
                 else:
