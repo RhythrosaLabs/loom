@@ -333,7 +333,7 @@ def generate_video_runwayml(runway_api_key, prompt_image_url, prompt_text):
                 time.sleep(10)
     except runwayml.APIConnectionError as e:
         st.error("RunwayML API Connection Error.")
-        st.error(e.__cause__)
+        st.error(e.__cause__)  # an underlying Exception, likely raised within httpx.
     except runwayml.RateLimitError as e:
         st.error("RunwayML Rate Limit Exceeded. Please wait and try again.")
     except runwayml.APIStatusError as e:
@@ -442,37 +442,29 @@ def main():
     # Depending on the sidebar_tab selection, assign variables accordingly
     if sidebar_tab == "API Keys":
         # Assign API keys from the sidebar inputs
-        luma_api_key = st.sidebar.text_input("Enter your Luma AI API Key", type="password")
-        stability_api_key = st.sidebar.text_input("Enter your Stability AI API Key", type="password")
-        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
-        openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key (for DALL·E)", type="password")
-        runway_api_key = st.sidebar.text_input("Enter your RunwayML API Key", type="password")
-    elif sidebar_tab == "About":
-        # No need to assign API keys when in About tab
         luma_api_key = st.session_state.get('luma_api_key', '')
         stability_api_key = st.session_state.get('stability_api_key', '')
         replicate_api_key = st.session_state.get('replicate_api_key', '')
         openai_api_key = st.session_state.get('openai_api_key', '')
         runway_api_key = st.session_state.get('runway_api_key', '')
-    
+        
+        # Update session state with new API keys
+        st.session_state.luma_api_key = st.session_state.get('luma_api_key', luma_api_key)
+        st.session_state.stability_api_key = st.session_state.get('stability_api_key', stability_api_key)
+        st.session_state.replicate_api_key = st.session_state.get('replicate_api_key', replicate_api_key)
+        st.session_state.openai_api_key = st.session_state.get('openai_api_key', openai_api_key)
+        st.session_state.runway_api_key = st.session_state.get('runway_api_key', runway_api_key)
+    elif sidebar_tab == "About":
+        # Retrieve API keys from session state
+        luma_api_key = st.session_state.get('luma_api_key', '')
+        stability_api_key = st.session_state.get('stability_api_key', '')
+        replicate_api_key = st.session_state.get('replicate_api_key', '')
+        openai_api_key = st.session_state.get('openai_api_key', '')
+        runway_api_key = st.session_state.get('runway_api_key', '')
+
     # Set Replicate API token
     if replicate_api_key:
         os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
-
-    # Save API keys to session state
-    if sidebar_tab == "API Keys":
-        st.session_state.luma_api_key = luma_api_key
-        st.session_state.stability_api_key = stability_api_key
-        st.session_state.replicate_api_key = replicate_api_key
-        st.session_state.openai_api_key = openai_api_key
-        st.session_state.runway_api_key = runway_api_key
-
-    # Retrieve API keys from session state
-    luma_api_key = st.session_state.get('luma_api_key', '')
-    stability_api_key = st.session_state.get('stability_api_key', '')
-    replicate_api_key = st.session_state.get('replicate_api_key', '')
-    openai_api_key = st.session_state.get('openai_api_key', '')
-    runway_api_key = st.session_state.get('runway_api_key', '')
 
     # Prompt the user to enter at least one API key if none are provided
     if not luma_api_key and not stability_api_key and not replicate_api_key and not openai_api_key and not runway_api_key:
