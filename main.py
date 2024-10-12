@@ -7,19 +7,19 @@ import time
 import base64
 from PIL import Image
 import io
-from moviepy.editor import (
-    VideoFileClip, concatenate_videoclips, CompositeVideoClip, vfx, ImageClip
-)
+from moviepy.editor import VideoFileClip, concatenate_videoclips, CompositeVideoClip, vfx, ImageClip
 import os
 import sys
 import numpy as np
 import traceback
 import zipfile
 
-# Redirect stderr to stdout to avoid issues with logging in some environments
+# Redirect stderr to stdout to capture all logs in Streamlit
 sys.stderr = sys.stdout
 
-# Initialize session state
+# -----------------------------
+# Initialize Session State
+# -----------------------------
 if 'generations' not in st.session_state:
     st.session_state.generations = []  # List to store generation metadata
 if 'generated_images' not in st.session_state:
@@ -28,6 +28,10 @@ if 'generated_videos' not in st.session_state:
     st.session_state.generated_videos = []
 if 'final_video' not in st.session_state:
     st.session_state.final_video = None
+
+# -----------------------------
+# Helper Functions
+# -----------------------------
 
 def resize_image(image, target_size):
     return image.resize(target_size)
@@ -343,28 +347,129 @@ def generate_video_runwayml(runway_api_key, prompt_image_url, prompt_text):
         st.error(f"An unexpected error occurred with RunwayML: {e}")
         st.error(traceback.format_exc())
 
+# -----------------------------
+# Main Application Function
+# -----------------------------
 def main():
-    st.set_page_config(page_title="AI Video Suite", layout="wide")
-    st.title("All-in-One AI Video Solution")
+    # -------------------------
+    # Streamlit Page Configuration
+    # -------------------------
+    st.set_page_config(page_title="AI Video Suite", layout="wide", page_icon="🎬")
+    
+    # -------------------------
+    # Custom CSS for Enhanced UI
+    # -------------------------
+    st.markdown("""
+    <style>
+    /* Background and Text Color */
+    .reportview-container {
+        background-color: #1a1a1a;
+        color: white;
+    }
+    .sidebar .sidebar-content {
+        background-color: #333333;
+    }
+    
+    /* Header Styling */
+    h1 {
+        color: #FFD700;
+        text-align: center;
+        font-family: 'Helvetica', sans-serif;
+    }
+    
+    /* Button Styling */
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        height: 3em;
+        width: 15em;
+        border-radius:10px;
+        border: 1px solid #4CAF50;
+        font-size:20px;
+    }
+    
+    .stButton>button:hover {
+        background-color: #45a049;
+    }
+    
+    /* Success and Error Message Styling */
+    .css-1aumxhk.edgvbvh3 {
+        background-color: #1a1a1a;
+    }
+    
+    /* Tooltip Styling */
+    div.tooltip {
+        position: relative;
+        display: inline-block;
+        border-bottom: 1px dotted black;
+    }
+    
+    div.tooltip .tooltiptext {
+        visibility: hidden;
+        width: 200px;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px 0;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%; 
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    div.tooltip:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
+    
+    /* Grid Layout for Images */
+    .image-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-gap: 10px;
+    }
+    
+    </style>
+    """, unsafe_allow_html=True)
 
-    # Sidebar with two tabs: API Keys | About
-    sidebar_tab = st.sidebar.radio("Navigate", ["API Keys", "About"])
+    # -------------------------
+    # Application Header
+    # -------------------------
+    st.title("🎬 AI Video Suite")
+
+    # -------------------------
+    # Sidebar Navigation
+    # -------------------------
+    sidebar_tab = st.sidebar.radio("Navigate", ["API Keys", "About"], index=0)
 
     if sidebar_tab == "API Keys":
-        st.sidebar.header("API Keys")
-        luma_api_key = st.sidebar.text_input("Enter your Luma AI API Key", type="password")
-        stability_api_key = st.sidebar.text_input("Enter your Stability AI API Key", type="password")
-        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password")
-        openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key (for DALL·E)", type="password")
-        runway_api_key = st.sidebar.text_input("Enter your RunwayML API Key", type="password")
+        st.sidebar.header("🔑 API Keys")
+        # Use unique keys for each input field to prevent duplicate element IDs
+        luma_api_key = st.sidebar.text_input("Enter your Luma AI API Key", type="password", key="luma_api_key")
+        stability_api_key = st.sidebar.text_input("Enter your Stability AI API Key", type="password", key="stability_api_key")
+        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password", key="replicate_api_key")
+        openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key (for DALL·E)", type="password", key="openai_api_key")
+        runway_api_key = st.sidebar.text_input("Enter your RunwayML API Key", type="password", key="runway_api_key")
+
+        # Save API keys to session state
+        st.session_state.luma_api_key = luma_api_key
+        st.session_state.stability_api_key = stability_api_key
+        st.session_state.replicate_api_key = replicate_api_key
+        st.session_state.openai_api_key = openai_api_key
+        st.session_state.runway_api_key = runway_api_key
+
     elif sidebar_tab == "About":
-        st.sidebar.header("About")
+        st.sidebar.header("ℹ️ About")
         st.sidebar.markdown("""
-        ### AI Video Suite
+        ### **AI Video Suite**
 
         **AI Video Suite** is an all-in-one platform that leverages multiple artificial intelligence services to generate stunning images and videos based on user prompts. Whether you're a content creator, marketer, or simply an AI enthusiast, this application provides a seamless experience to create and manage AI-generated media.
 
-        #### Features
+        #### **Features**
 
         - **Snapshot Mode:** Generate a series of images using DALL·E, Stable Diffusion, or Flux and compile them into a cohesive video.
         - **Text-to-Video (Stability AI):** Create dynamic videos from textual descriptions, allowing for detailed customization of video segments and transitions.
@@ -373,7 +478,7 @@ def main():
         - **RunwayML Image-to-Video:** Generate videos from images and text prompts using RunwayML's powerful models.
         - **Luma Integration:** Enhance your video creations with advanced camera motions and keyframe management using Luma AI.
 
-        #### Supported AI Services
+        #### **Supported AI Services**
 
         - **DALL·E 3 (OpenAI):** Generate detailed and high-resolution images from textual prompts.
         - **Stable Diffusion (Stability AI):** Create versatile images with various configurations.
@@ -381,7 +486,7 @@ def main():
         - **RunwayML:** Generate videos from images and prompts using advanced AI models.
         - **Luma AI:** Advanced video generation with camera motion and keyframe support.
 
-        #### How to Use
+        #### **How to Use**
 
         1. **API Keys:**
            - Navigate to the **API Keys** tab in the sidebar.
@@ -398,12 +503,12 @@ def main():
            - Generated images will appear in the **Images** tab.
            - Generated videos will be available in the **Videos** tab, where you can view and download them individually or as a ZIP file.
 
-        #### Getting Started
+        #### **Getting Started**
 
         - **Installation:**
           Ensure you have Python installed. Install the required dependencies using:
           ```bash
-          pip install streamlit requests pillow moviepy numpy replicate luma-ai runwayml
+          pip install streamlit requests pillow moviepy numpy replicate luma-ai runwayml httpx
           ```
 
         - **Running the App:**
@@ -413,7 +518,7 @@ def main():
           ```
           The app will open in your default web browser.
 
-        #### Important Notes
+        #### **Important Notes**
 
         - **API Usage and Costs:**
           Be mindful of the usage limits and potential costs associated with each API. Monitor your usage to avoid unexpected charges.
@@ -424,111 +529,106 @@ def main():
         - **Performance:**
           Generating a large number of images or complex videos may consume significant resources and time. Adjust your settings accordingly.
 
-        #### Support
+        #### **Support**
 
         If you encounter any issues or have questions, please refer to the documentation of the respective AI services or reach out to our support team.
 
-        #### Credits
+        #### **Credits**
 
         - **OpenAI:** [https://openai.com/](https://openai.com/)
         - **Stability AI:** [https://stability.ai/](https://stability.ai/)
         - **Replicate AI:** [https://replicate.com/](https://replicate.com/)
         - **RunwayML:** [https://runwayml.com/](https://runwayml.com/)
         - **Luma AI:** [https://www.luma.ai/](https://www.luma.ai/)
-
-        ---
         """)
-
-    # Depending on the sidebar_tab selection, assign variables accordingly
-    if sidebar_tab == "API Keys":
-        # Assign API keys from the sidebar inputs
-        luma_api_key = st.session_state.get('luma_api_key', '')
-        stability_api_key = st.session_state.get('stability_api_key', '')
-        replicate_api_key = st.session_state.get('replicate_api_key', '')
-        openai_api_key = st.session_state.get('openai_api_key', '')
-        runway_api_key = st.session_state.get('runway_api_key', '')
-        
-        # Update session state with new API keys
-        st.session_state.luma_api_key = st.session_state.get('luma_api_key', luma_api_key)
-        st.session_state.stability_api_key = st.session_state.get('stability_api_key', stability_api_key)
-        st.session_state.replicate_api_key = st.session_state.get('replicate_api_key', replicate_api_key)
-        st.session_state.openai_api_key = st.session_state.get('openai_api_key', openai_api_key)
-        st.session_state.runway_api_key = st.session_state.get('runway_api_key', runway_api_key)
-    elif sidebar_tab == "About":
-        # Retrieve API keys from session state
-        luma_api_key = st.session_state.get('luma_api_key', '')
-        stability_api_key = st.session_state.get('stability_api_key', '')
-        replicate_api_key = st.session_state.get('replicate_api_key', '')
-        openai_api_key = st.session_state.get('openai_api_key', '')
-        runway_api_key = st.session_state.get('runway_api_key', '')
-
-    # Set Replicate API token
+    
+    # -------------------------
+    # Retrieve API Keys from Session State
+    # -------------------------
+    luma_api_key = st.session_state.get('luma_api_key', '')
+    stability_api_key = st.session_state.get('stability_api_key', '')
+    replicate_api_key = st.session_state.get('replicate_api_key', '')
+    openai_api_key = st.session_state.get('openai_api_key', '')
+    runway_api_key = st.session_state.get('runway_api_key', '')
+    
+    # -------------------------
+    # Set Replicate API Token
+    # -------------------------
     if replicate_api_key:
         os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
 
-    # Prompt the user to enter at least one API key if none are provided
-    if not luma_api_key and not stability_api_key and not replicate_api_key and not openai_api_key and not runway_api_key:
-        st.warning("Please enter at least one API Key in the **API Keys** tab to proceed.")
-        return
+    # -------------------------
+    # Prompt User to Enter at Least One API Key
+    # -------------------------
+    if not any([luma_api_key, stability_api_key, replicate_api_key, openai_api_key, runway_api_key]):
+        st.warning("🔑 Please enter at least one API Key in the **API Keys** tab to proceed.")
+        st.stop()
 
-    # Initialize Luma AI client if API key is provided
+    # -------------------------
+    # Initialize Luma AI Client
+    # -------------------------
     if luma_api_key:
         try:
             luma_client = LumaAI(auth_token=luma_api_key)
         except Exception as e:
-            st.error(f"Error initializing Luma AI client: {e}")
+            st.error(f"❌ Error initializing Luma AI client: {e}")
             luma_client = None
     else:
         luma_client = None
 
-    # Tabs for Generator, Images, Videos
-    tab1, tab2, tab3 = st.tabs(["Generator", "Images", "Videos"])
+    # -------------------------
+    # Main Tabs: Generator, Images, Videos
+    # -------------------------
+    tab1, tab2, tab3 = st.tabs(["🎨 Generator", "🖼️ Images", "📽️ Videos"])
 
-    # -------------------------------------------
+    # -------------------------
     # Generator Tab
-    # -------------------------------------------
+    # -------------------------
     with tab1:
-        st.header("Content Generation")
+        st.header("🎨 Content Generation")
 
-        # Mode selection
-        mode = st.selectbox("Select Mode", [
+        # Mode Selection
+        mode = st.selectbox("Select Generation Mode", [
             "Snapshot Mode",
             "Text-to-Video (Stability AI)",
             "Image-to-Video (Stability AI)",
             "Image Generation (Replicate AI)",
             "RunwayML Image-to-Video",
-            "Luma"
+            "Luma Integration"
         ])
 
+        # ---------------------
+        # Snapshot Mode
+        # ---------------------
         if mode == "Snapshot Mode":
-            st.subheader("Snapshot Mode")
-            snapshot_generator = st.selectbox("Select Image Generator", ["DALL·E", "Stable Diffusion", "Flux"])
-            prompt = st.text_area("Enter a text prompt for Snapshot Mode", height=100)
-            num_images = st.slider("Number of images to generate", 2, 300, 10)
-            fps = st.slider("Frames per second", 1, 60, 24)
+            st.subheader("📸 Snapshot Mode")
+            snapshot_generator = st.selectbox("Select Image Generator", ["DALL·E", "Stable Diffusion", "Flux"], key="snapshot_generator")
+            prompt = st.text_area("Enter a text prompt for Snapshot Mode", height=100, key="snapshot_prompt")
+            num_images = st.slider("Number of images to generate", 2, 300, 10, key="snapshot_num_images")
+            fps = st.slider("Frames per second", 1, 60, 24, key="snapshot_fps")
             if snapshot_generator in ["Flux", "DALL·E"]:
-                aspect_ratio = st.selectbox("Aspect Ratio", ["1:1", "16:9", "9:16"])
+                aspect_ratio = st.selectbox("Aspect Ratio", ["1:1", "16:9", "9:16"], key="snapshot_aspect_ratio")
             else:
                 aspect_ratio = "1:1"
 
             # Check for required API keys
             if snapshot_generator == "Stable Diffusion" and not stability_api_key:
-                st.error("Stability AI API Key is required for Stable Diffusion.")
-                return
+                st.error("🚫 Stability AI API Key is required for Stable Diffusion.")
+                st.stop()
             if snapshot_generator == "Flux" and not replicate_api_key:
-                st.error("Replicate API Key is required for Flux.")
-                return
+                st.error("🚫 Replicate API Key is required for Flux.")
+                st.stop()
             if snapshot_generator == "DALL·E" and not openai_api_key:
-                st.error("OpenAI API Key is required for DALL·E.")
-                return
+                st.error("🚫 OpenAI API Key is required for DALL·E.")
+                st.stop()
 
-            if st.button("Generate Video"):
+            if st.button("✨ Generate Video"):
                 if not prompt:
-                    st.error("Please enter a text prompt.")
-                    return
+                    st.error("❗ Please enter a text prompt.")
+                    st.stop()
 
                 try:
-                    st.write(f"Generating {num_images} images using {snapshot_generator}...")
+                    st.success(f"🔄 Generating {num_images} images using {snapshot_generator}...")
                     images = []
                     for i in range(num_images):
                         st.write(f"Generating image {i+1}/{num_images}...")
@@ -553,57 +653,62 @@ def main():
                             quality = "standard"  # or "hd"
                             image = generate_image_from_text_dalle(openai_api_key, prompt, size, quality)
                         else:
-                            st.error(f"Unsupported generator: {snapshot_generator}")
-                            return
+                            st.error(f"🚫 Unsupported generator: {snapshot_generator}")
+                            continue
                         if image:
                             images.append(image)
+                            st.session_state.generated_images.append(image)
                         else:
-                            st.error(f"Failed to generate image {i+1}")
+                            st.error(f"❌ Failed to generate image {i+1}")
+
                     if images:
-                        st.session_state.generated_images.extend(images)
-                        st.write("Creating video from generated images...")
+                        st.success("✅ All images generated successfully!")
+                        st.write("🎞️ Creating video from generated images...")
                         video_path = "snapshot_mode_video.mp4"
                         create_video_from_images(images, fps, video_path)
                         st.session_state.generated_videos.append(video_path)
                         st.session_state.final_video = video_path
-                        st.success(f"Snapshot Mode video created: {video_path}")
+                        st.success(f"🎬 Snapshot Mode video created: {video_path}")
                         st.video(video_path)
                     else:
-                        st.error("Failed to generate images for Snapshot Mode.")
+                        st.error("❌ Failed to generate images for Snapshot Mode.")
+
                 except Exception as e:
-                    st.error(f"An unexpected error occurred: {str(e)}")
-                    st.write("Error details:", str(e))
-                    st.write("Traceback:", traceback.format_exc())
+                    st.error(f"❗ An unexpected error occurred: {str(e)}")
+                    st.write("🛠️ Error details:", str(e))
+                    st.write("📜 Traceback:", traceback.format_exc())
 
+        # ---------------------
+        # Text-to-Video (Stability AI)
+        # ---------------------
         elif mode == "Text-to-Video (Stability AI)":
-            if not stability_api_key:
-                st.error("Stability AI API Key is required for this mode.")
-                return
-            prompt = st.text_area("Enter a text prompt for video generation", height=100)
-            cfg_scale = st.slider("CFG Scale (Stick to original image)", 0.0, 10.0, 1.8)
-            motion_bucket_id = st.slider("Motion Bucket ID (Less motion to more motion)", 1, 255, 127)
-            seed = st.number_input("Seed (0 for random)", min_value=0, max_value=4294967294, value=0)
-            num_segments = st.slider("Number of video segments to generate", 1, 60, 5)
-            crossfade_duration = st.slider("Crossfade Duration (seconds)", 0.0, 2.0, 0.0, 0.01)
+            st.subheader("📜 Text-to-Video (Stability AI)")
+            prompt = st.text_area("Enter a text prompt for video generation", height=100, key="stability_video_prompt")
+            cfg_scale = st.slider("CFG Scale (Controls adherence to prompt)", 0.0, 10.0, 1.8, key="stability_cfg_scale")
+            motion_bucket_id = st.slider("Motion Bucket ID (1-255)", 1, 255, 127, key="stability_motion_bucket")
+            seed = st.number_input("Seed (0 for random)", min_value=0, max_value=4294967294, value=0, key="stability_seed")
+            num_segments = st.slider("Number of video segments to generate", 1, 60, 5, key="stability_num_segments")
+            crossfade_duration = st.slider("Crossfade Duration (seconds)", 0.0, 2.0, 0.0, 0.01, key="stability_crossfade")
 
-            if st.button("Generate Video"):
+            if st.button("🎥 Generate Video with Stability AI"):
                 if not prompt:
-                    st.error("Please enter a text prompt.")
-                    return
-                # Call the combined function for Text-to-Video
+                    st.error("❗ Please enter a text prompt.")
+                    st.stop()
+
                 try:
-                    st.write("Generating image from text prompt...")
+                    st.success("🔄 Generating initial image from text prompt...")
                     image = generate_image_from_text_stability(stability_api_key, prompt)
                     if image is None:
-                        return
+                        st.error("❌ Failed to generate the initial image.")
+                        st.stop()
                     image = resize_image(image, (768, 768))
                     st.session_state.generated_images.append(image)
-                    
+
                     video_clips = []
                     current_image = image
 
                     for i in range(num_segments):
-                        st.write(f"Generating video segment {i+1}/{num_segments}...")
+                        st.write(f"🎞️ Generating video segment {i+1}/{num_segments}...")
                         generation_id = start_video_generation_stability(stability_api_key, current_image, cfg_scale, motion_bucket_id, seed)
 
                         if generation_id:
@@ -613,7 +718,7 @@ def main():
                                 video_path = f"video_segment_{i+1}.mp4"
                                 with open(video_path, "wb") as f:
                                     f.write(video_content)
-                                st.write(f"Saved video segment to {video_path}")
+                                st.write(f"✅ Saved video segment to {video_path}")
                                 video_clips.append(video_path)
                                 st.session_state.generated_videos.append(video_path)
 
@@ -622,99 +727,111 @@ def main():
                                     current_image = last_frame_image
                                     st.session_state.generated_images.append(current_image)
                                 else:
-                                    st.warning(f"Could not extract last frame from segment {i+1}. Using previous image.")
+                                    st.warning(f"⚠️ Could not extract last frame from segment {i+1}. Using previous image.")
                             else:
-                                st.error(f"Failed to retrieve video content for segment {i+1}.")
+                                st.error(f"❌ Failed to retrieve video content for segment {i+1}.")
                         else:
-                            st.error(f"Failed to start video generation for segment {i+1}.")
+                            st.error(f"❌ Failed to start video generation for segment {i+1}.")
 
                     if video_clips:
-                        st.write("Concatenating video segments into one longform video...")
+                        st.success("🔗 Concatenating video segments into one longform video...")
                         final_video, valid_clips = concatenate_videos(video_clips, crossfade_duration=crossfade_duration)
                         if final_video:
                             try:
                                 final_video_path = "longform_video.mp4"
                                 final_video.write_videofile(final_video_path, codec="libx264", audio_codec="aac")
                                 st.session_state.final_video = final_video_path
-                                st.success(f"Longform video created: {final_video_path}")
+                                st.success(f"🎬 Longform video created: {final_video_path}")
                                 st.video(final_video_path)
                             except Exception as e:
-                                st.error(f"Error writing final video: {str(e)}")
-                                st.write("Traceback:", traceback.format_exc())
+                                st.error(f"❌ Error writing final video: {str(e)}")
+                                st.write("📜 Traceback:", traceback.format_exc())
                             finally:
                                 if final_video:
                                     final_video.close()
                                 if valid_clips:
                                     for clip in valid_clips:
                                         clip.close()
+                            
+                            # Clean up individual video segments
+                            for video_file in video_clips:
+                                if os.path.exists(video_file):
+                                    os.remove(video_file)
+                                    st.write(f"🗑️ Removed temporary file: {video_file}")
+                                else:
+                                    st.warning(f"⚠️ Could not find file to remove: {video_file}")
                         else:
-                            st.error("Failed to create the final video.")
-                        
-                        # Clean up individual video segments
-                        for video_file in video_clips:
-                            if os.path.exists(video_file):
-                                os.remove(video_file)
-                                st.write(f"Removed temporary file: {video_file}")
-                            else:
-                                st.warning(f"Could not find file to remove: {video_file}")
+                            st.error("❌ Failed to create the final video.")
                     else:
-                        st.error("No video segments were successfully generated.")
+                        st.error("❌ No video segments were successfully generated.")
 
                 except Exception as e:
-                    st.error(f"An unexpected error occurred: {str(e)}")
-                    st.write("Error details:", str(e))
-                    st.write("Traceback:", traceback.format_exc())
+                    st.error(f"❗ An unexpected error occurred: {str(e)}")
+                    st.write("🛠️ Error details:", str(e))
+                    st.write("📜 Traceback:", traceback.format_exc())
 
+        # ---------------------
+        # Image-to-Video (Stability AI)
+        # ---------------------
         elif mode == "Image-to-Video (Stability AI)":
-            if not stability_api_key:
-                st.error("Stability AI API Key is required for this mode.")
-                return
-            image_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-            cfg_scale = st.slider("CFG Scale (Stick to original image)", 0.0, 10.0, 1.8)
-            motion_bucket_id = st.slider("Motion Bucket ID (Less motion to more motion)", 1, 255, 127)
-            seed = st.number_input("Seed (0 for random)", min_value=0, max_value=4294967294, value=0)
+            st.subheader("🖼️ Image-to-Video (Stability AI)")
+            image_file = st.file_uploader("📂 Upload an image", type=["png", "jpg", "jpeg"], key="stability_image_upload")
+            cfg_scale = st.slider("CFG Scale (Controls adherence to prompt)", 0.0, 10.0, 1.8, key="stability_image_cfg_scale")
+            motion_bucket_id = st.slider("Motion Bucket ID (1-255)", 1, 255, 127, key="stability_image_motion_bucket")
+            seed = st.number_input("Seed (0 for random)", min_value=0, max_value=4294967294, value=0, key="stability_image_seed")
 
-            if st.button("Generate Video"):
+            if st.button("🎥 Generate Video from Image"):
                 if not image_file:
-                    st.error("Please upload an image.")
-                    return
-                image = Image.open(image_file)
-                image = resize_image(image, (768, 768))
-                st.session_state.generated_images.append(image)
+                    st.error("❗ Please upload an image.")
+                    st.stop()
 
-                st.write("Generating video from uploaded image...")
-                generation_id = start_video_generation_stability(stability_api_key, image, cfg_scale, motion_bucket_id, seed)
+                try:
+                    image = Image.open(image_file)
+                    image = resize_image(image, (768, 768))
+                    st.session_state.generated_images.append(image)
 
-                if generation_id:
-                    video_content = poll_for_video_stability(stability_api_key, generation_id)
+                    st.success("🔄 Starting video generation from uploaded image...")
+                    generation_id = start_video_generation_stability(stability_api_key, image, cfg_scale, motion_bucket_id, seed)
 
-                    if video_content:
-                        video_path = "image_to_video.mp4"
-                        with open(video_path, "wb") as f:
-                            f.write(video_content)
-                        st.write(f"Saved video to {video_path}")
-                        st.session_state.generated_videos.append(video_path)
-                        st.session_state.final_video = video_path
-                        st.success(f"Image-to-Video created: {video_path}")
-                        st.video(video_path)
+                    if generation_id:
+                        video_content = poll_for_video_stability(stability_api_key, generation_id)
+
+                        if video_content:
+                            video_path = "image_to_video.mp4"
+                            with open(video_path, "wb") as f:
+                                f.write(video_content)
+                            st.success(f"✅ Image-to-Video created: {video_path}")
+                            st.session_state.generated_videos.append(video_path)
+                            st.session_state.final_video = video_path
+                            st.video(video_path)
+                        else:
+                            st.error("❌ Failed to retrieve video content.")
                     else:
-                        st.error("Failed to retrieve video content.")
-                else:
-                    st.error("Failed to start video generation.")
+                        st.error("❌ Failed to start video generation.")
 
+                except Exception as e:
+                    st.error(f"❗ An unexpected error occurred: {str(e)}")
+                    st.write("🛠️ Error details:", str(e))
+                    st.write("📜 Traceback:", traceback.format_exc())
+
+        # ---------------------
+        # Image Generation (Replicate AI)
+        # ---------------------
         elif mode == "Image Generation (Replicate AI)":
-            if not replicate_api_key:
-                st.error("Replicate API Key is required for this mode.")
-                return
-            prompt = st.text_area("Enter a prompt for image generation", "A serene landscape with mountains and a river")
-            aspect_ratio = st.selectbox("Aspect Ratio", ["1:1", "16:9", "9:16"])
-            output_format = st.selectbox("Output Format", ["jpg", "png", "webp"])
-            output_quality = st.slider("Output Quality", 1, 100, 80)
-            safety_tolerance = st.slider("Safety Tolerance", 0, 5, 2)
-            prompt_upsampling = st.checkbox("Prompt Upsampling", value=True)
+            st.subheader("🖼️ Image Generation (Replicate AI)")
+            prompt = st.text_area("Enter a prompt for image generation", "A serene landscape with mountains and a river", height=100, key="replicate_prompt")
+            aspect_ratio = st.selectbox("Aspect Ratio", ["1:1", "16:9", "9:16"], key="replicate_aspect_ratio")
+            output_format = st.selectbox("Output Format", ["jpg", "png", "webp"], key="replicate_output_format")
+            output_quality = st.slider("Output Quality", 1, 100, 80, key="replicate_output_quality")
+            safety_tolerance = st.slider("Safety Tolerance", 0, 5, 2, key="replicate_safety_tolerance")
+            prompt_upsampling = st.checkbox("Prompt Upsampling", value=True, key="replicate_prompt_upsampling")
 
-            if st.button("Generate Image"):
-                with st.spinner("Generating image..."):
+            if st.button("✨ Generate Image with Replicate AI"):
+                if not prompt:
+                    st.error("❗ Please enter a prompt.")
+                    st.stop()
+
+                with st.spinner("🔄 Generating image..."):
                     try:
                         image = generate_image_from_text_flux(
                             prompt,
@@ -737,65 +854,69 @@ def main():
                                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
                             })
 
-                            st.image(image)
-                            st.success("Image generated and saved to history.")
+                            st.image(image, caption=f"Image {len(st.session_state.generated_images)}", use_column_width=True)
+                            st.success("✅ Image generated and saved to history.")
                         else:
-                            st.error("Failed to generate image.")
+                            st.error("❌ Failed to generate image.")
 
                     except Exception as e:
-                        st.error(f"An error occurred: {e}")
+                        st.error(f"❗ An error occurred: {e}")
                         st.error(traceback.format_exc())
 
+        # ---------------------
+        # RunwayML Image-to-Video
+        # ---------------------
         elif mode == "RunwayML Image-to-Video":
-            if not runway_api_key:
-                st.error("RunwayML API Key is required for this mode.")
-                return
-            prompt_image_url = st.text_input("Enter the URL of the prompt image")
-            prompt_text = st.text_area("Enter the text prompt for the video", height=100)
+            st.subheader("🎥 RunwayML Image-to-Video")
+            prompt_image_url = st.text_input("📌 Enter the URL of the prompt image", key="runway_prompt_image_url")
+            prompt_text = st.text_area("📝 Enter the text prompt for the video", "A futuristic cityscape at sunset", height=100, key="runway_prompt_text")
 
-            if st.button("Generate Video with RunwayML"):
+            if st.button("✨ Generate Video with RunwayML"):
                 if not prompt_image_url:
-                    st.error("Please enter the URL of the prompt image.")
-                    return
+                    st.error("❗ Please enter the URL of the prompt image.")
+                    st.stop()
                 if not prompt_text:
-                    st.error("Please enter a text prompt.")
-                    return
+                    st.error("❗ Please enter a text prompt.")
+                    st.stop()
+
                 try:
-                    st.write("Initiating RunwayML video generation...")
+                    st.success("🔄 Initiating RunwayML video generation...")
                     generate_video_runwayml(runway_api_key, prompt_image_url, prompt_text)
                 except Exception as e:
-                    st.error(f"An unexpected error occurred with RunwayML: {e}")
+                    st.error(f"❗ An unexpected error occurred with RunwayML: {e}")
                     st.error(traceback.format_exc())
 
-        elif mode == "Luma":
-            if not luma_api_key:
-                st.error("Luma AI API Key is required for this mode.")
-                return
-            prompt = st.text_area("Prompt", "A teddy bear in sunglasses playing electric guitar and dancing")
-            aspect_ratio = st.selectbox("Aspect Ratio", ["9:16", "16:9", "1:1", "3:4", "4:3"])
-            loop = st.checkbox("Loop Video", value=False)
+        # ---------------------
+        # Luma Integration
+        # ---------------------
+        elif mode == "Luma Integration":
+            st.subheader("🎞️ Luma Integration")
+            prompt = st.text_area("Enter your prompt", "A teddy bear in sunglasses playing electric guitar and dancing", height=100, key="luma_prompt")
+            aspect_ratio = st.selectbox("Aspect Ratio", ["9:16", "16:9", "1:1", "3:4", "4:3"], key="luma_aspect_ratio")
+            loop = st.checkbox("🔁 Loop Video", value=False, key="luma_loop")
 
             # Camera Motions
-            st.subheader("Camera Motion")
+            st.markdown("### 🎥 Camera Motion")
             try:
                 supported_camera_motions = luma_client.generations.camera_motion.list()
-                camera_motion = st.selectbox("Select Camera Motion", ["None"] + supported_camera_motions)
+                camera_motion = st.selectbox("Select Camera Motion", ["None"] + supported_camera_motions, key="luma_camera_motion")
                 if camera_motion != "None":
                     prompt = f"{prompt}, {camera_motion}"
             except Exception as e:
-                st.error(f"Could not fetch camera motions: {e}")
+                st.error(f"🚫 Could not fetch camera motions: {e}")
                 camera_motion = None
 
             # Keyframes
-            st.subheader("Keyframes")
+            st.markdown("### 🎞️ Keyframes")
             keyframe_option = st.selectbox(
-                "Keyframe Options",
-                ["None", "Start Image", "End Image", "Start and End Image", "Start Generation", "End Generation", "Start and End Generation"]
+                "Select Keyframe Options",
+                ["None", "Start Image", "End Image", "Start and End Image", "Start Generation", "End Generation", "Start and End Generation"],
+                key="luma_keyframe_option"
             )
             keyframes = {}
 
             if keyframe_option in ["Start Image", "Start and End Image"]:
-                start_image_url = st.text_input("Start Image URL")
+                start_image_url = st.text_input("📌 Start Image URL", key="luma_start_image_url")
                 if start_image_url:
                     keyframes["frame0"] = {
                         "type": "image",
@@ -803,7 +924,7 @@ def main():
                     }
 
             if keyframe_option in ["End Image", "Start and End Image"]:
-                end_image_url = st.text_input("End Image URL")
+                end_image_url = st.text_input("📌 End Image URL", key="luma_end_image_url")
                 if end_image_url:
                     keyframes["frame1"] = {
                         "type": "image",
@@ -811,7 +932,7 @@ def main():
                     }
 
             if keyframe_option in ["Start Generation", "Start and End Generation"]:
-                start_generation_id = st.text_input("Start Generation ID")
+                start_generation_id = st.text_input("🔑 Start Generation ID", key="luma_start_generation_id")
                 if start_generation_id:
                     keyframes["frame0"] = {
                         "type": "generation",
@@ -819,17 +940,21 @@ def main():
                     }
 
             if keyframe_option in ["End Generation", "Start and End Generation"]:
-                end_generation_id = st.text_input("End Generation ID")
+                end_generation_id = st.text_input("🔑 End Generation ID", key="luma_end_generation_id")
                 if end_generation_id:
                     keyframes["frame1"] = {
                         "type": "generation",
                         "id": end_generation_id
                     }
 
-            # Generate button
-            if st.button("Generate Video"):
-                with st.spinner("Generating video... this may take a few minutes."):
-                    try:
+            # Generate Button
+            if st.button("✨ Generate Video with Luma AI"):
+                if not prompt:
+                    st.error("❗ Please enter a prompt.")
+                    st.stop()
+
+                try:
+                    with st.spinner("🔄 Generating video with Luma AI..."):
                         # Prepare generation parameters
                         generation_params = {
                             "prompt": prompt,
@@ -847,9 +972,10 @@ def main():
                             if generation.state == "completed":
                                 completed = True
                             elif generation.state == "failed":
-                                st.error(f"Generation failed: {generation.failure_reason}")
-                                return
+                                st.error(f"❌ Generation failed: {generation.failure_reason}")
+                                st.stop()
                             else:
+                                st.write("⌛ Video generation in progress... Waiting for completion.")
                                 time.sleep(5)
 
                         video_url = generation.assets.video
@@ -861,77 +987,102 @@ def main():
                             f.write(response.content)
 
                         st.session_state.generated_videos.append(video_path)
-                        st.session_state.generations.append({
-                            "id": generation.id,
-                            "type": "video",
-                            "path": video_path,
-                            "source": "Luma AI",
-                            "prompt": prompt,
-                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
-                        })
-
+                        st.session_state.final_video = video_path
+                        st.success(f"✅ Video generated and saved to {video_path}")
                         st.video(video_path)
-                        st.success("Video generated and saved to history.")
 
-                    except Exception as e:
-                        st.error(f"An error occurred: {e}")
-                        st.error(traceback.format_exc())
+                except Exception as e:
+                    st.error(f"❗ An error occurred: {e}")
+                    st.error(traceback.format_exc())
 
-    # -------------------------------------------
+    # -------------------------
     # Images Tab
-    # -------------------------------------------
+    # -------------------------
     with tab2:
-        st.subheader("Generated Images")
+        st.header("🖼️ Generated Images")
         if st.session_state.generated_images:
-            display_images_in_grid(st.session_state.generated_images)
+            st.write(f"### Total Images: {len(st.session_state.generated_images)}")
+            # Display images in a responsive grid
+            num_columns = 3
+            rows = len(st.session_state.generated_images) // num_columns + 1
+            for i in range(rows):
+                cols = st.columns(num_columns)
+                for j in range(num_columns):
+                    idx = i * num_columns + j
+                    if idx < len(st.session_state.generated_images):
+                        with cols[j]:
+                            st.image(st.session_state.generated_images[idx], use_column_width=True, caption=f"Image {idx + 1}")
         else:
-            st.write("No images generated yet. Use the Generator tab to create images.")
+            st.info("🎨 No images generated yet. Use the **Generator** tab to create images.")
 
-    # -------------------------------------------
+    # -------------------------
     # Videos Tab
-    # -------------------------------------------
+    # -------------------------
     with tab3:
-        st.subheader("Generated Videos")
+        st.header("📽️ Generated Videos")
         if st.session_state.generated_videos:
+            st.write(f"### Total Videos: {len(st.session_state.generated_videos)}")
             for i, video_path in enumerate(st.session_state.generated_videos):
                 if os.path.exists(video_path):
+                    st.write(f"#### Video {i+1}")
                     st.video(video_path)
-                    st.write(f"**Video {i+1}**")
                     with open(video_path, "rb") as f:
-                        st.download_button(f"Download Video {i+1}", f, file_name=f"video_{i+1}.mp4")
+                        st.download_button(
+                            label=f"📥 Download Video {i+1}",
+                            data=f,
+                            file_name=os.path.basename(video_path),
+                            mime="video/mp4"
+                        )
                 else:
-                    st.error(f"Video file not found: {video_path}")
+                    st.error(f"❌ Video file not found: {video_path}")
             
+            # Final Video Display
             if st.session_state.final_video and os.path.exists(st.session_state.final_video):
-                st.subheader("Final Video")
+                st.write(f"### 🎞️ Final Video: {st.session_state.final_video}")
                 st.video(st.session_state.final_video)
                 with open(st.session_state.final_video, "rb") as f:
-                    st.download_button("Download Final Video", f, file_name="final_video.mp4")
+                    st.download_button(
+                        label="📥 Download Final Video",
+                        data=f,
+                        file_name=os.path.basename(st.session_state.final_video),
+                        mime="video/mp4"
+                    )
         else:
-            st.write("No videos generated yet. Use the Generator tab to create videos.")
-
-        # Add download all button
+            st.info("📽️ No videos generated yet. Use the **Generator** tab to create videos.")
+        
+        # ---------------------
+        # Download All Content as ZIP
+        # ---------------------
         if st.session_state.generated_images or st.session_state.generated_videos:
-            zip_path = create_zip_file(st.session_state.generated_images, st.session_state.generated_videos)
-            if zip_path:
-                with open(zip_path, "rb") as f:
-                    st.download_button("Download All Content (ZIP)", f, file_name="generated_content.zip")
-                os.remove(zip_path)
+            with st.expander("📦 Download All Content (ZIP)"):
+                zip_path = create_zip_file(st.session_state.generated_images, st.session_state.generated_videos)
+                if zip_path:
+                    with open(zip_path, "rb") as f:
+                        st.download_button(
+                            label="📥 Download ZIP",
+                            data=f,
+                            file_name="generated_content.zip",
+                            mime="application/zip"
+                        )
+                    # Optionally, remove the ZIP after download
+                    os.remove(zip_path)
+        else:
+            st.info("📦 No content available for ZIP download.")
 
-    # -------------------------------------------
-    # Footer with style
-    # -------------------------------------------
+    # -------------------------
+    # Footer Styling (Optional)
+    # -------------------------
     st.markdown("""
     <style>
-    .reportview-container {
-        background: #1a1a1a;
-        color: white;
-    }
-    .sidebar .sidebar-content {
-        background: #333333;
+    /* Footer Styling */
+    footer {
+        visibility: hidden;
     }
     </style>
     """, unsafe_allow_html=True)
 
+# -----------------------------
+# Run the Application
+# -----------------------------
 if __name__ == "__main__":
     main()
