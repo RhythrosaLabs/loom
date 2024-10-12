@@ -324,7 +324,7 @@ def generate_video_runwayml(runway_api_key, prompt_image_url, prompt_text):
                 video_path = f"runwayml_video_{generation_id}.mp4"
                 with open(video_path, "wb") as f:
                     f.write(video_response.content)
-                st.write(f"Saved RunwayML video to {video_path}")
+                st.write(f"✅ Saved RunwayML video to {video_path}")
                 st.session_state.generated_videos.append(video_path)
                 st.session_state.final_video = video_path
                 st.video(video_path)
@@ -333,7 +333,7 @@ def generate_video_runwayml(runway_api_key, prompt_image_url, prompt_text):
                 st.error(f"RunwayML Video Generation Failed: {generation.failure_reason}")
                 break
             else:
-                st.write("RunwayML Video Generation in progress... Waiting for completion.")
+                st.write("⌛ RunwayML Video Generation in progress... Waiting for completion.")
                 time.sleep(10)
     except runwayml.APIConnectionError as e:
         st.error("RunwayML API Connection Error.")
@@ -433,6 +433,10 @@ def main():
         grid-gap: 10px;
     }
     
+    /* Footer Styling */
+    footer {
+        visibility: hidden;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -449,18 +453,11 @@ def main():
     if sidebar_tab == "API Keys":
         st.sidebar.header("🔑 API Keys")
         # Use unique keys for each input field to prevent duplicate element IDs
-        luma_api_key = st.sidebar.text_input("Enter your Luma AI API Key", type="password", key="luma_api_key")
-        stability_api_key = st.sidebar.text_input("Enter your Stability AI API Key", type="password", key="stability_api_key")
-        replicate_api_key = st.sidebar.text_input("Enter your Replicate API Key", type="password", key="replicate_api_key")
-        openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key (for DALL·E)", type="password", key="openai_api_key")
-        runway_api_key = st.sidebar.text_input("Enter your RunwayML API Key", type="password", key="runway_api_key")
-
-        # Save API keys to session state
-        st.session_state.luma_api_key = luma_api_key
-        st.session_state.stability_api_key = stability_api_key
-        st.session_state.replicate_api_key = replicate_api_key
-        st.session_state.openai_api_key = openai_api_key
-        st.session_state.runway_api_key = runway_api_key
+        st.sidebar.text_input("Enter your Luma AI API Key", type="password", key="luma_api_key")
+        st.sidebar.text_input("Enter your Stability AI API Key", type="password", key="stability_api_key")
+        st.sidebar.text_input("Enter your Replicate API Key", type="password", key="replicate_api_key")
+        st.sidebar.text_input("Enter your OpenAI API Key (for DALL·E)", type="password", key="openai_api_key")
+        st.sidebar.text_input("Enter your RunwayML API Key", type="password", key="runway_api_key")
 
     elif sidebar_tab == "About":
         st.sidebar.header("ℹ️ About")
@@ -541,7 +538,7 @@ def main():
         - **RunwayML:** [https://runwayml.com/](https://runwayml.com/)
         - **Luma AI:** [https://www.luma.ai/](https://www.luma.ai/)
         """)
-    
+
     # -------------------------
     # Retrieve API Keys from Session State
     # -------------------------
@@ -695,6 +692,7 @@ def main():
                     st.error("❗ Please enter a text prompt.")
                     st.stop()
 
+                # Call the combined function for Text-to-Video
                 try:
                     st.success("🔄 Generating initial image from text prompt...")
                     image = generate_image_from_text_stability(stability_api_key, prompt)
@@ -703,7 +701,7 @@ def main():
                         st.stop()
                     image = resize_image(image, (768, 768))
                     st.session_state.generated_images.append(image)
-
+                    
                     video_clips = []
                     current_image = image
 
@@ -762,6 +760,11 @@ def main():
                                     st.warning(f"⚠️ Could not find file to remove: {video_file}")
                         else:
                             st.error("❌ Failed to create the final video.")
+                        
+                        # Final Video Display
+                        if st.session_state.final_video and os.path.exists(st.session_state.final_video):
+                            st.write(f"### 🎞️ Final Video: {st.session_state.final_video}")
+                            st.video(st.session_state.final_video)
                     else:
                         st.error("❌ No video segments were successfully generated.")
 
@@ -784,7 +787,6 @@ def main():
                 if not image_file:
                     st.error("❗ Please upload an image.")
                     st.stop()
-
                 try:
                     image = Image.open(image_file)
                     image = resize_image(image, (768, 768))
@@ -810,9 +812,8 @@ def main():
                         st.error("❌ Failed to start video generation.")
 
                 except Exception as e:
-                    st.error(f"❗ An unexpected error occurred: {str(e)}")
-                    st.write("🛠️ Error details:", str(e))
-                    st.write("📜 Traceback:", traceback.format_exc())
+                    st.error(f"❗ An unexpected error occurred: {e}")
+                    st.error(traceback.format_exc())
 
         # ---------------------
         # Image Generation (Replicate AI)
@@ -878,7 +879,6 @@ def main():
                 if not prompt_text:
                     st.error("❗ Please enter a text prompt.")
                     st.stop()
-
                 try:
                     st.success("🔄 Initiating RunwayML video generation...")
                     generate_video_runwayml(runway_api_key, prompt_image_url, prompt_text)
@@ -891,7 +891,7 @@ def main():
         # ---------------------
         elif mode == "Luma Integration":
             st.subheader("🎞️ Luma Integration")
-            prompt = st.text_area("Enter your prompt", "A teddy bear in sunglasses playing electric guitar and dancing", height=100, key="luma_prompt")
+            prompt = st.text_area("📝 Enter your prompt", "A teddy bear in sunglasses playing electric guitar and dancing", height=100, key="luma_prompt")
             aspect_ratio = st.selectbox("Aspect Ratio", ["9:16", "16:9", "1:1", "3:4", "4:3"], key="luma_aspect_ratio")
             loop = st.checkbox("🔁 Loop Video", value=False, key="luma_loop")
 
@@ -1004,11 +1004,10 @@ def main():
             st.write(f"### Total Images: {len(st.session_state.generated_images)}")
             # Display images in a responsive grid
             num_columns = 3
-            rows = len(st.session_state.generated_images) // num_columns + 1
-            for i in range(rows):
+            for i in range(0, len(st.session_state.generated_images), num_columns):
                 cols = st.columns(num_columns)
                 for j in range(num_columns):
-                    idx = i * num_columns + j
+                    idx = i + j
                     if idx < len(st.session_state.generated_images):
                         with cols[j]:
                             st.image(st.session_state.generated_images[idx], use_column_width=True, caption=f"Image {idx + 1}")
