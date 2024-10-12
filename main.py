@@ -29,13 +29,8 @@ if 'generated_videos' not in st.session_state:
 if 'final_video' not in st.session_state:
     st.session_state.final_video = None
 
-def resize_image(image):
-    width, height = image.size
-    if (width, height) in [(1024, 576), (576, 1024), (768, 768), (1024, 1024)]:
-        return image
-    else:
-        st.warning("Resizing image to 768x768 (default)")
-        return image.resize((768, 768))
+def resize_image(image, target_size):
+    return image.resize(target_size)
 
 def generate_image_from_text_stability(api_key, prompt):
     url = "https://api.stability.ai/v1beta/generation/stable-diffusion-v1-6/text-to-image"
@@ -83,16 +78,22 @@ def generate_image_from_text_flux(prompt, aspect_ratio, output_format, output_qu
         st.error(traceback.format_exc())
         return None
 
-def generate_image_from_text_dalle(api_key, prompt, size):
+def generate_image_from_text_dalle(api_key, prompt, size, quality):
     openai.api_key = api_key
     try:
         response = openai.Image.create(
+            model="dall-e-3",
             prompt=prompt,
             n=1,
             size=size,
-            response_format="url"  # Get the image URL
+            response_format="url",
+            quality=quality
         )
         image_url = response['data'][0]['url']
+        # Optionally, you can access the revised prompt
+        revised_prompt = response['data'][0].get('revised_prompt', '')
+        if revised_prompt:
+            st.write(f"Revised Prompt: {revised_prompt}")
         image_response = requests.get(image_url)
         image = Image.open(io.BytesIO(image_response.content))
         return image
@@ -374,8 +375,13 @@ def main():
                                 prompt_upsampling=True
                             )
                         elif snapshot_generator == "DALL·E":
-                            size = "1024x1024" if aspect_ratio == "1:1" else ("1024x576" if aspect_ratio == "16:9" else "576x1024")
-                            image = generate_image_from_text_dalle(openai_api_key, prompt, size)
+                            size = "1024x1024"
+                            if aspect_ratio == "16:9":
+                                size = "1792x1024"
+                            elif aspect_ratio == "9:16":
+                                size = "1024x1792"
+                            quality = "standard"  # or "hd"
+                            image = generate_image_from_text_dalle(openai_api_key, prompt, size, quality)
                         else:
                             st.error(f"Unsupported generator: {snapshot_generator}")
                             return
@@ -420,7 +426,7 @@ def main():
                     image = generate_image_from_text_stability(stability_api_key, prompt)
                     if image is None:
                         return
-                    image = resize_image(image)
+                    image = resize_image(image, (768, 768))
                     st.session_state.generated_images.append(image)
                     
                     video_clips = []
@@ -503,7 +509,7 @@ def main():
                     st.error("Please upload an image.")
                     return
                 image = Image.open(image_file)
-                image = resize_image(image)
+                image = resize_image(image, (768, 768))
                 st.session_state.generated_images.append(image)
 
                 st.write("Generating video from uploaded image...")
