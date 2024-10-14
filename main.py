@@ -517,7 +517,8 @@ def main():
 
         #### **Credits**
 
-        - **Daniel Sheils:** [http://linkedin.com/in/danielsheils/)]
+        - - **Daniel Sheils:** [http://linkedin.com/in/danielsheils/](http://linkedin.com/in/danielsheils/)
+
         
         """)
 
