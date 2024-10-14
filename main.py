@@ -479,11 +479,11 @@ def main():
 
         #### **Supported AI Services**
 
-        - **DALL·E 3:** Generate detailed and high-resolution images from textual prompts.
-        - **Stable Diffusion:** Create versatile images with various configurations.
-        - **Flux (Replicate AI):** Produce unique images with customizable quality and safety settings.
-        - **RunwayML:** Generate videos from images and prompts using advanced AI models.
-        - **Luma AI:** Advanced video generation with camera motion and keyframe support.
+        - **DALL·E 3:** text-to-image.
+        - **Stable Diffusion:** text-to-image, text-to-video, image-to-video.
+        - **Flux (Replicate AI):** text-to-image.
+        - **RunwayML:** text-to-video and image-to-video
+        - **Luma AI:** text-to-video and image-to-video
 
         #### **How to Use**
 
