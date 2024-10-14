@@ -73,7 +73,8 @@ def generate_image_from_text_flux(prompt, aspect_ratio, output_format, output_qu
                 "prompt_upsampling": prompt_upsampling
             }
         )
-        image_url = output[0]
+        # Access the URL directly from the FileOutput object
+        image_url = output.url
         image_response = requests.get(image_url)
         image = Image.open(io.BytesIO(image_response.content))
         return image
