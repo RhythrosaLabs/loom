@@ -513,11 +513,11 @@ def main():
 
         #### **Support**
         - If you encounter any issues or have questions, please feel free to get in touch.
-        - (View and fork the code)[https://github.com/RhythrosaLabs/loom/]
+        - [View and fork the code](https://github.com/RhythrosaLabs/loom/)
 
         #### **Credits**
 
-        - **Daniel Sheils:** [LinkedIn](http://linkedin.com/in/danielsheils/) | [Portfolio](https://danielsheils.myportfolio.com) | [Rhythrosa Labs](https://rhythrosalabs.com) | [brAInstormer](https://brainstormer.streamlit.app) | (Game Maker)[https://game-maker2.streamlit.app]
+        - **Daniel Sheils:** [LinkedIn](http://linkedin.com/in/danielsheils/) | [Portfolio](https://danielsheils.myportfolio.com) | [Rhythrosa Labs](https://rhythrosalabs.com) | [brAInstormer](https://brainstormer.streamlit.app) | [Game Maker](https://game-maker2.streamlit.app)
         
 
 
