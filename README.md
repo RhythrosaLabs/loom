@@ -1,79 +1,56 @@
- <style>
-    /* Background and Text Color */
-    .reportview-container {
-        background-color: #1a1a1a;
-        color: white;
-    }
-    .sidebar .sidebar-content {
-        background-color: #333333;
-    }
-    
-    /* Header Styling */
-    h1 {
-        color: #FFD700;
-        text-align: center;
-        font-family: 'Helvetica', sans-serif;
-    }
-    
-    /* Button Styling */
-    .stButton>button {
-        background-color: #4CAF50;
-        color: white;
-        height: 3em;
-        width: 15em;
-        border-radius:10px;
-        border: 1px solid #4CAF50;
-        font-size:20px;
-    }
-    
-    .stButton>button:hover {
-        background-color: #45a049;
-    }
-    
-    /* Success and Error Message Styling */
-    .css-1aumxhk.edgvbvh3 {
-        background-color: #1a1a1a;
-    }
-    
-    /* Tooltip Styling */
-    div.tooltip {
-        position: relative;
-        display: inline-block;
-        border-bottom: 1px dotted black;
-    }
-    
-    div.tooltip .tooltiptext {
-        visibility: hidden;
-        width: 200px;
-        background-color: #555;
-        color: #fff;
-        text-align: center;
-        border-radius: 6px;
-        padding: 5px 0;
-        position: absolute;
-        z-index: 1;
-        bottom: 125%; 
-        left: 50%;
-        margin-left: -100px;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-    
-    div.tooltip:hover .tooltiptext {
-        visibility: visible;
-        opacity: 1;
-    }
-    
-    /* Grid Layout for Images */
-    .image-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        grid-gap: 10px;
-    }
-    
-    /* Footer Styling */
-    footer {
-        visibility: hidden;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# AI Video Suite
+
+AI Video Suite is a Streamlit-based application designed to generate and process videos and images using multiple AI services such as Luma AI, Replicate, Stable Diffusion, DALL·E, and RunwayML. This app allows users to create custom AI-generated media, process it, and download the results seamlessly.
+
+## Features
+
+- **Text-to-Image**: Generate images from text prompts using DALL·E, Stable Diffusion, or Flux.
+- **Text-to-Video**: Generate videos from text prompts using Luma AI, Stable Diffusion, or RunwayML.
+- **Image-to-Video**: Generate videos from an uploaded image using Luma AI or Stable Diffusion.
+- **Video Concatenation**: Automatically merge generated video clips into a single video.
+- **Downloadable Media**: Download generated images, videos, or a ZIP file of all generated media.
+
+## How to Use
+
+1. **API Keys**: 
+   - Navigate to the **API Keys** tab on the sidebar.
+   - Input your API keys for Luma AI, Stability AI, Replicate AI, OpenAI (DALL·E), and RunwayML.
+   - Make sure your API keys are valid to access the respective AI services.
+
+2. **Generate Content**:
+   - Use the **Generator** tab to create images or videos based on text or uploaded images.
+   - Select the AI service, provide the necessary prompts or images, and click **Generate**.
+
+3. **Download**:
+   - View generated content in the **Images** and **Videos** tabs.
+   - Download individual files or all content as a ZIP file.
+
+## Installation
+
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/your-repo/ai-video-suite.git
+    cd ai-video-suite
+    ```
+
+2. Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3. Run the application:
+    ```bash
+    streamlit run app.py
+    ```
+
+## API Services
+
+- **Luma AI**: For generating videos from text or images.
+- **Stable Diffusion**: For generating images and videos from text prompts.
+- **DALL·E**: Text-to-image generation using OpenAI's DALL·E.
+- **Replicate AI**: Image generation using Flux models.
+- **RunwayML**: For generating videos from text or images.
+
+## Credits
+
+- **Daniel Sheils**: [LinkedIn](http://linkedin.com/in/danielsheils/) | [Portfolio](https://danielsheils.myportfolio.com) | [Rhythrosa Labs](https://rhythrosalabs.com)
