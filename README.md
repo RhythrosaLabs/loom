@@ -1,6 +1,6 @@
-# AI Video Suite
+# Loom
 
-AI Video Suite is a Streamlit-based application designed to generate and process videos and images using multiple AI services such as Luma AI, Replicate, Stable Diffusion, DALL·E, and RunwayML. This app allows users to create custom AI-generated media, process it, and download the results seamlessly.
+Loom is a Streamlit-based application designed to generate and process videos and images using multiple AI services such as Luma AI, Replicate, Stable Diffusion, DALL·E, and RunwayML. This app allows users to create custom AI-generated media, process it, and download the results seamlessly.
 
 ## Features
 
