@@ -467,21 +467,20 @@ def main():
         st.markdown("""
         ### **AI Video Suite**
 
-        **AI Video Suite** is an all-in-one platform that leverages multiple artificial intelligence services to generate stunning images and videos based on user prompts. Whether you're a content creator, marketer, or simply an AI enthusiast, this application provides a seamless experience to create and manage AI-generated media.
+        **AI Video Suite** is an all-in-one platform that leverages multiple AI image and video services to generate and concatenate content. Whether you're a content creator, marketer, or simply an AI enthusiast, this application provides a seamless experience to create and manage AI-generated media.
 
         #### **Features**
 
         - **Snapshot Mode:** Generate a series of images using DALL·E, Stable Diffusion, or Flux and compile them into a cohesive video.
-        - **Text-to-Video (Stability AI):** Create dynamic videos from textual descriptions, allowing for detailed customization of video segments and transitions.
-        - **Image-to-Video (Stability AI):** Transform your existing images into engaging videos with customizable motion and effects.
-        - **Image Generation (Replicate AI):** Utilize Replicate AI's Flux model to generate high-quality images based on your prompts.
-        - **RunwayML Image-to-Video:** Generate videos from images and text prompts using RunwayML's powerful models.
-        - **Luma Integration:** Enhance your video creations with advanced camera motions and keyframe management using Luma AI.
+        - **Text-to-Video:** Luma, Stable Diffusion, and Runway
+        - **Image-to-Video:** Luma, Stable Diffusion, and Runway
+        - **Image Generation:** Flux, Stable Diffusion, DALLE3
+
 
         #### **Supported AI Services**
 
-        - **DALL·E 3 (OpenAI):** Generate detailed and high-resolution images from textual prompts.
-        - **Stable Diffusion (Stability AI):** Create versatile images with various configurations.
+        - **DALL·E 3:** Generate detailed and high-resolution images from textual prompts.
+        - **Stable Diffusion:** Create versatile images with various configurations.
         - **Flux (Replicate AI):** Produce unique images with customizable quality and safety settings.
         - **RunwayML:** Generate videos from images and prompts using advanced AI models.
         - **Luma AI:** Advanced video generation with camera motion and keyframe support.
@@ -503,23 +502,6 @@ def main():
            - Generated images will appear in the **Images** tab.
            - Generated videos will be available in the **Videos** tab, where you can view and download them individually or as a ZIP file.
 
-        #### **Getting Started**
-
-        - **Installation:**
-          Ensure you have Python installed. Install the required dependencies using:
-          ```bash
-          pip install streamlit requests pillow moviepy numpy replicate luma-ai runwayml httpx
-          ```
-
-        - **Running the App:**
-          Save the code to a file, e.g., `ai_video_suite.py`, and run:
-          ```bash
-          streamlit run ai_video_suite.py
-          ```
-          The app will open in your default web browser.
-
-        #### **Important Notes**
-
         - **API Usage and Costs:**
           Be mindful of the usage limits and potential costs associated with each API. Monitor your usage to avoid unexpected charges.
 
@@ -535,11 +517,8 @@ def main():
 
         #### **Credits**
 
-        - **OpenAI:** [https://openai.com/](https://openai.com/)
-        - **Stability AI:** [https://stability.ai/](https://stability.ai/)
-        - **Replicate AI:** [https://replicate.com/](https://replicate.com/)
-        - **RunwayML:** [https://runwayml.com/](https://runwayml.com/)
-        - **Luma AI:** [https://www.luma.ai/](https://www.luma.ai/)
+        - **Daniel Sheils:** [http://linkedin.com/in/danielsheils/)
+        
         """)
 
     # -------------------------
