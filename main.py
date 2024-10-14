@@ -512,12 +512,13 @@ def main():
           Generating a large number of images or complex videos may consume significant resources and time. Adjust your settings accordingly.
 
         #### **Support**
-
-        If you encounter any issues or have questions, please refer to the documentation of the respective AI services or reach out to our support team.
+        - If you encounter any issues or have questions, please feel free to get in touch.
+        - (View and fork the code)[https://github.com/RhythrosaLabs/loom/]
 
         #### **Credits**
 
-        - **Daniel Sheils:** [LinkedIn](http://linkedin.com/in/danielsheils/) | [Portfolio](https://danielsheils.myportfolio.com) | [Rhythrosa Labs](https://rhythrosalabs.com)
+        - **Daniel Sheils:** [LinkedIn](http://linkedin.com/in/danielsheils/) | [Portfolio](https://danielsheils.myportfolio.com) | [Rhythrosa Labs](https://rhythrosalabs.com) | [brAInstormer](https://brainstormer.streamlit.app) | (Game Maker)[https://game-maker2.streamlit.app]
+        
 
 
         
