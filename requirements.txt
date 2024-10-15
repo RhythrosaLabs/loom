@@ -9,5 +9,3 @@ openai
 opencv-python
 runwayml
 httpx
-streamlit-option-menu
-fpdf
