@@ -54,3 +54,8 @@ Loom is a Streamlit-based application designed to generate and process videos an
 ## Credits
 
 - **Daniel Sheils**: [LinkedIn](http://linkedin.com/in/danielsheils/) | [Portfolio](https://danielsheils.myportfolio.com) | [Rhythrosa Labs](https://rhythrosalabs.com)
+
+
+## Support
+
+If you find this useful, consider supporting via [PayPal](https://paypal.me/noodlebake)
