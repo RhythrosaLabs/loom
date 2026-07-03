@@ -1,61 +1,61 @@
-# Loom
+<div align="center">
 
-Loom is a Streamlit-based application designed to generate and process videos and images using multiple AI services such as Luma AI, Replicate, Stable Diffusion, DALL·E, and RunwayML. This app allows users to create custom AI-generated media, process it, and download the results seamlessly.
+# 🎬 Loom
 
-## Features
+**AI video and image generator — Luma AI, RunwayML, Stable Diffusion, DALL-E, Replicate in one Streamlit app**
 
-- **Text-to-Image**: Generate images from text prompts using DALL·E, Stable Diffusion, or Flux.
-- **Text-to-Video**: Generate videos from text prompts using Luma AI, Stable Diffusion, or RunwayML.
-- **Image-to-Video**: Generate videos from an uploaded image using Luma AI or Stable Diffusion.
-- **Video Concatenation**: Automatically merge generated video clips into a single video.
-- **Downloadable Media**: Download generated images, videos, or a ZIP file of all generated media.
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 
-## How to Use
+</div>
 
-1. **API Keys**: 
-   - Navigate to the **API Keys** tab on the sidebar.
-   - Input your API keys for Luma AI, Stability AI, Replicate AI, OpenAI (DALL·E), and RunwayML.
-   - Make sure your API keys are valid to access the respective AI services.
+---
 
-2. **Generate Content**:
-   - Use the **Generator** tab to create images or videos based on text or uploaded images.
-   - Select the AI service, provide the necessary prompts or images, and click **Generate**.
+Loom is a Streamlit app that connects to every major AI video and image generation service from a single interface. Generate, process, and download AI-created media without switching between platforms.
 
-3. **Download**:
-   - View generated content in the **Images** and **Videos** tabs.
-   - Download individual files or all content as a ZIP file.
+## ✨ Features
 
-## Installation
+- **Text-to-Image** — DALL-E 3, Stable Diffusion, Flux
+- **Text-to-Video** — Luma AI (Dream Machine), Stable Diffusion, RunwayML
+- **Image-to-Video** — turn any uploaded image into video via Luma AI or Stable Diffusion
+- **Video Concatenation** — automatically merge generated clips into one video
+- **Downloadable Media** — download individual files or a ZIP of all generated content
+- **Multi-API key management** — configure Luma, Stability AI, Replicate, OpenAI, RunwayML in the sidebar
 
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/your-repo/ai-video-suite.git
-    cd ai-video-suite
-    ```
+## 🚀 Quick Start
 
-2. Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+```bash
+git clone https://github.com/RhythrosaLabs/loom.git
+cd loom
+pip install -r requirements.txt
+streamlit run app.py
+```
 
-3. Run the application:
-    ```bash
-    streamlit run app.py
-    ```
+Go to the **API Keys** tab in the sidebar and add your keys, then start generating.
 
-## API Services
+## 🛠️ Tech Stack
 
-- **Luma AI**: For generating videos from text or images.
-- **Stable Diffusion**: For generating images and videos from text prompts.
-- **DALL·E**: Text-to-image generation using OpenAI's DALL·E.
-- **Replicate AI**: Image generation using Flux models.
-- **RunwayML**: For generating videos from text or images.
+- **Python + Streamlit** — web app UI
+- **Luma AI** — Dream Machine video generation
+- **RunwayML** — video generation
+- **Replicate** — Stable Diffusion, Flux
+- **OpenAI** — DALL-E 3
 
-## Credits
+## 🤝 Contributing
 
-- **Daniel Sheils**: [LinkedIn](http://linkedin.com/in/danielsheils/) | [Portfolio](https://danielsheils.myportfolio.com) | [Rhythrosa Labs](https://rhythrosalabs.com)
+PRs welcome. Open an issue first for major changes.
 
+## 📄 License
 
-## Support
+MIT
 
-If you find this useful, consider supporting via [PayPal](https://paypal.me/noodlebake)
+## 💛 Support
+
+If Loom powers your content pipeline, consider supporting development:
+
+👉 [Donate via PayPal](https://paypal.me/noodlebake) — @noodlebake
+
+---
+<div align="center">Made with ❤️ by <a href="https://github.com/RhythrosaLabs">RhythrosaLabs</a></div>
