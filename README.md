@@ -60,4 +60,4 @@ If Loom powers your content pipeline, consider supporting development:
 🌐 [Portfolio: rhythrosalabs.github.io](https://rhythrosalabs.github.io) (more apps, music and sound design)
 
 ---
-<div align="center">Made with ❤️ by <a href="https://github.com/RhythrosaLabs">RhythrosaLabs</a></div>
+<div align="center">Built by <a href="https://rhythrosalabs.github.io/">Dan Sheils</a></div>

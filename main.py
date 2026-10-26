@@ -517,7 +517,7 @@ def main():
 
         #### **Credits**
 
-        - **Daniel Sheils:** [LinkedIn](http://linkedin.com/in/danielsheils/) | [Portfolio](https://danielsheils.myportfolio.com) | [Rhythrosa Labs](https://rhythrosalabs.com) | [brAInstormer](https://brainstormer.streamlit.app) | [Game Maker](https://game-maker2.streamlit.app)
+        - **Built by [Dan Sheils](https://rhythrosalabs.github.io/):** [LinkedIn](http://linkedin.com/in/danielsheils/) | [brAInstormer](https://brainstormer.streamlit.app) | [Game Maker](https://game-maker2.streamlit.app)
         
 
 
